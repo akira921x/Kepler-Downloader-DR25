@@ -353,7 +353,7 @@ class KeplerFilter:
         """
         if self.source_job_info is None:
             return False, "Source job info not available"
-            
+
         if self.source_job_info.mode == JobMode.UNKNOWN:
             return False, "Source job mode could not be determined"
 
@@ -409,7 +409,7 @@ class KeplerFilter:
         """
         if self.source_job_info is None:
             return False
-            
+
         copied_files = 0
 
         if self.source_job_info.mode == JobMode.EXOMINER:
@@ -509,7 +509,14 @@ class KeplerFilter:
             A dictionary with download results.
         """
         if not self.config.download_missing:
-            return {"kic": kic_id, "success": False, "files_downloaded": 0, "has_dvt": False, "file_paths": [], "error": "Download disabled"}
+            return {
+                "kic": kic_id,
+                "success": False,
+                "files_downloaded": 0,
+                "has_dvt": False,
+                "file_paths": [],
+                "error": "Download disabled",
+            }
 
         result = {
             "kic": kic_id,
@@ -810,7 +817,11 @@ class KeplerFilter:
                 f.write("Data structure conversion may be required.\n")
                 f.write("Use --force-mode to override (use with caution).\n")
 
-            if self.source_job_info and self.config.target_mode == JobMode.EXOMINER and not self.source_job_info.has_dvt_files:
+            if (
+                self.source_job_info
+                and self.config.target_mode == JobMode.EXOMINER
+                and not self.source_job_info.has_dvt_files
+            ):
                 f.write("\n⚠️  WARNING: ExoMiner mode requires DVT files!\n")
                 f.write("The source job does not contain DVT files.\n")
                 f.write("Consider using Standard mode or downloading DVT files.\n")

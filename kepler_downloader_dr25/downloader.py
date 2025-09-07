@@ -127,9 +127,9 @@ class FastKeplerDownloader:
             try:
                 # Security: Configure Redis with connection limits and timeouts
                 self.redis_client = redis.Redis(
-                    host=self.redis_config.get('host', 'localhost'),
-                    port=self.redis_config.get('port', 6379),
-                    db=self.redis_config.get('db', 0),
+                    host=self.redis_config.get("host", "localhost"),
+                    port=self.redis_config.get("port", 6379),
+                    db=self.redis_config.get("db", 0),
                     decode_responses=False,
                     socket_connect_timeout=5,
                     socket_timeout=5,
