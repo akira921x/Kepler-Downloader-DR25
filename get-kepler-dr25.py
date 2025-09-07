@@ -586,10 +586,13 @@ class FastKeplerDownloader:
                             downloaded += len(chunk)
 
                             # Log progress for large files (>100MB)
-                            if total_size > 100 * 1024 * 1024 and total_size > 0:
-                                if downloaded % (10 * 1024 * 1024) == 0:  # Every 10MB
-                                    progress = downloaded / total_size * 100
-                                    logging.debug(f"Download progress: {progress:.1f}%")
+                            if (
+                                total_size > 100 * 1024 * 1024
+                                and total_size > 0
+                                and downloaded % (10 * 1024 * 1024) == 0  # Every 10MB
+                            ):
+                                progress = downloaded / total_size * 100
+                                logging.debug(f"Download progress: {progress:.1f}%")
 
                 # Atomic rename after successful download
                 os.rename(temp_path, target_path)
