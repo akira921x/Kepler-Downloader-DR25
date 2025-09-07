@@ -105,10 +105,9 @@ class FastKeplerDownloader:
             os.makedirs(self.job_dir, exist_ok=True)
         if self.exominer_format and self.kepler_dir:
             os.makedirs(self.kepler_dir, exist_ok=True)
-            if self.backup_no_dvt:
-                if self.job_dir:
-                    self.backup_dir = os.path.join(self.job_dir, "backup_no_dvt")
-                    os.makedirs(self.backup_dir, exist_ok=True)
+            if self.backup_no_dvt and self.job_dir:
+                self.backup_dir = os.path.join(self.job_dir, "backup_no_dvt")
+                os.makedirs(self.backup_dir, exist_ok=True)
 
         # Reports directory
         if self.job_dir:
