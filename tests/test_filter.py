@@ -2,12 +2,13 @@
 Unit tests for the filter module
 """
 
-import pytest
-import tempfile
 import os
 import shutil
-from unittest.mock import Mock, patch
 import sqlite3
+import tempfile
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestFilterOperations:
@@ -77,7 +78,6 @@ class TestModeConversion:
         kic_id = "006922244"
 
         # Standard path
-        standard_path = f"mastDownload/Kepler/kplr{kic_id}_lc/"
 
         # Convert to ExoMiner
         first_four = kic_id[:4]
@@ -90,8 +90,7 @@ class TestModeConversion:
         kic_id = "006922244"
 
         # ExoMiner path
-        first_four = kic_id[:4]
-        exominer_path = f"Kepler/{first_four}/{kic_id}/"
+        kic_id[:4]
 
         # Convert to Standard
         standard_lc_path = f"mastDownload/Kepler/kplr{kic_id}_lc/"
@@ -208,7 +207,7 @@ class TestFilterDatabase:
         # Insert operation record
         cursor.execute(
             """
-            INSERT INTO filter_operations 
+            INSERT INTO filter_operations
             (kic_id, source_mode, target_mode, operation, success)
             VALUES (?, ?, ?, ?, ?)
         """,

@@ -5,11 +5,10 @@ Provides detailed analysis of downloads, file types, and sizes.
 """
 
 import os
-import sys
 import sqlite3
+import sys
+
 import pandas as pd
-from pathlib import Path
-from datetime import datetime
 
 
 def format_size(bytes):
@@ -72,7 +71,7 @@ def generate_stats(job_dir):
     try:
         df_removed = pd.read_sql_query("SELECT * FROM removed_kics", conn)
         stats["removed_kics"] = len(df_removed)
-    except:
+    except Exception:
         stats["removed_kics"] = 0
 
     # Mode detection

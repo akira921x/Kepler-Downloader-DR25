@@ -4,12 +4,12 @@ Rebuild database from filesystem for existing job directories.
 This fixes the issue where Redis data was not synced to SQLite.
 """
 
+import json
 import os
 import sqlite3
 import sys
-from pathlib import Path
 from datetime import datetime
-import json
+from pathlib import Path
 
 
 def rebuild_database_from_filesystem(job_dir):
@@ -73,7 +73,7 @@ def rebuild_database_from_filesystem(job_dir):
                 # Insert into file_inventory
                 conn.execute(
                     """
-                    INSERT INTO file_inventory 
+                    INSERT INTO file_inventory
                     (kic, file_type, file_path, file_size, job_id)
                     VALUES (?, ?, ?, ?, ?)
                 """,
@@ -86,7 +86,7 @@ def rebuild_database_from_filesystem(job_dir):
 
             conn.execute(
                 """
-                INSERT INTO download_records 
+                INSERT INTO download_records
                 (kic, success, files_downloaded, llc_files, dvt_files, has_dvt, error_message, job_id, file_paths)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -111,7 +111,7 @@ def rebuild_database_from_filesystem(job_dir):
     conn.commit()
 
     # Print summary
-    print(f"\n✅ Database rebuilt successfully!")
+    print("\n✅ Database rebuilt successfully!")
     print(f"  - KICs: {kic_count}")
     print(f"  - Files: {file_count}")
     print(f"  - Total size: {total_size / (1024**3):.2f} GB")
@@ -119,7 +119,7 @@ def rebuild_database_from_filesystem(job_dir):
     # Verify
     verify_count = conn.execute("SELECT COUNT(*) FROM download_records").fetchone()[0]
     verify_files = conn.execute("SELECT COUNT(*) FROM file_inventory").fetchone()[0]
-    print(f"\n🔍 Verification:")
+    print("\n🔍 Verification:")
     print(f"  - Records in DB: {verify_count}")
     print(f"  - Files in DB: {verify_files}")
 

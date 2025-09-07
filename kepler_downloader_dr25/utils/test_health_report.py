@@ -3,10 +3,9 @@
 Test script to verify health report generation after bug fixes.
 """
 
-import sqlite3
 import os
+import sqlite3
 import sys
-from pathlib import Path
 
 
 def check_database_contents(job_dir):
@@ -47,7 +46,7 @@ def check_health_report(job_dir):
         print(f"❌ Health report not found: {report_path}")
         return False
 
-    with open(report_path, "r") as f:
+    with open(report_path) as f:
         content = f.read()
 
     # Check if report has actual data (not all zeros)

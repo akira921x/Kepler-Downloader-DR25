@@ -5,10 +5,11 @@ Useful for identifying failed downloads or incomplete jobs.
 """
 
 import os
-import sys
-import pandas as pd
 import sqlite3
+import sys
 from pathlib import Path
+
+import pandas as pd
 
 
 def check_missing_kics(csv_file, job_dir):
@@ -50,7 +51,7 @@ def check_missing_kics(csv_file, job_dir):
 
     # Get successful downloads
     cursor.execute("SELECT kic_id FROM download_records WHERE success = 1")
-    downloaded_kics = set(row[0] for row in cursor.fetchall())
+    downloaded_kics = {row[0] for row in cursor.fetchall()}
     conn.close()
 
     print(f"Found {len(downloaded_kics)} successfully downloaded KICs")
@@ -78,7 +79,7 @@ def main():
         print(f"Error: Job directory not found: {job_dir}")
         sys.exit(1)
 
-    print(f"\nChecking missing KICs...")
+    print("\nChecking missing KICs...")
     print(f"CSV file: {csv_file}")
     print(f"Job directory: {job_dir}")
     print("-" * 50)

@@ -1,24 +1,22 @@
-import os
-import glob
-import pandas as pd
-from astroquery.mast import Observations
-import time
-import logging
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock, Timer
-import json
-import sys
-import sqlite3
-import shutil
-import redis
-from typing import Dict, List, Any, Tuple, Optional
-import pickle  # Note: Only used with trusted internal data, never with user input
 import argparse
-import requests
-from urllib.parse import urlparse
-from pathlib import Path
 import csv
+import json
+import logging
+import os
+import shutil
+import sqlite3
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from pathlib import Path
+from threading import Lock, Timer
+from typing import Any, Dict, List, Tuple
+
+import pandas as pd
+import redis
+import requests
+from astroquery.mast import Observations
 
 
 class FastKeplerDownloader:
@@ -278,7 +276,7 @@ class FastKeplerDownloader:
                     # Insert or update with DVT status
                     conn.execute(
                         """
-                        INSERT INTO download_records 
+                        INSERT INTO download_records
                         (kic, success, files_downloaded, llc_files, dvt_files, has_dvt, error_message, job_id, file_paths)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(kic) DO UPDATE SET
@@ -319,7 +317,7 @@ class FastKeplerDownloader:
 
                     conn.execute(
                         """
-                        INSERT INTO file_inventory 
+                        INSERT INTO file_inventory
                         (kic, file_type, file_path, file_size, job_id)
                         VALUES (?, ?, ?, ?, ?)
                     """,
@@ -648,7 +646,7 @@ class FastKeplerDownloader:
         # Insert download record with DVT status
         conn.execute(
             """
-            INSERT INTO download_records 
+            INSERT INTO download_records
             (kic, success, files_downloaded, llc_files, dvt_files, has_dvt, error_message, job_id, file_paths)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -673,7 +671,7 @@ class FastKeplerDownloader:
 
                 conn.execute(
                     """
-                    INSERT INTO file_inventory 
+                    INSERT INTO file_inventory
                     (kic, file_type, file_path, file_size, job_id)
                     VALUES (?, ?, ?, ?, ?)
                 """,
@@ -707,8 +705,8 @@ class FastKeplerDownloader:
         # Get KICs with DVT
         kics_with_dvt = conn.execute(
             """
-            SELECT DISTINCT kic 
-            FROM download_records 
+            SELECT DISTINCT kic
+            FROM download_records
             WHERE has_dvt = true AND success = true
             ORDER BY kic
         """
@@ -718,8 +716,8 @@ class FastKeplerDownloader:
         # Get KICs without DVT
         kics_without_dvt = conn.execute(
             """
-            SELECT DISTINCT kic 
-            FROM download_records 
+            SELECT DISTINCT kic
+            FROM download_records
             WHERE has_dvt = false AND success = true
             ORDER BY kic
         """
@@ -770,7 +768,7 @@ class FastKeplerDownloader:
             # Record removal in database
             conn.execute(
                 """
-                INSERT INTO removed_kics 
+                INSERT INTO removed_kics
                 (kic, removal_reason, llc_files_removed, dvt_files_removed, total_size_mb_removed, job_id)
                 VALUES (?, ?, ?, ?, ?, ?)
             """,
@@ -787,7 +785,7 @@ class FastKeplerDownloader:
             # Update download record
             conn.execute(
                 """
-                UPDATE download_records 
+                UPDATE download_records
                 SET removal_reason = 'No DVT files (required for ExoMiner)'
                 WHERE kic = ?
             """,
@@ -915,7 +913,7 @@ class FastKeplerDownloader:
         # Final summary
         elapsed = time.time() - self.stats["start_time"]
         logging.info(f"\n{'='*60}")
-        logging.info(f"DOWNLOAD COMPLETE!")
+        logging.info("DOWNLOAD COMPLETE!")
         logging.info(f"Total time: {elapsed/60:.1f} minutes")
         logging.info(f"KICs processed: {self.stats['processed']}")
         logging.info(f"KICs with data: {self.stats['kics_with_data']}")
@@ -1209,7 +1207,7 @@ def main():
     )
 
     # Start download
-    stats = downloader.download_kics(kic_list)
+    downloader.download_kics(kic_list)
 
     # Retry failed downloads if requested
     retry_stats = None

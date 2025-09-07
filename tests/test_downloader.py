@@ -2,12 +2,13 @@
 Unit tests for the downloader module
 """
 
-import pytest
-import tempfile
 import os
 import sqlite3
-from unittest.mock import Mock, patch, MagicMock
+import tempfile
+from unittest.mock import MagicMock, Mock, patch
+
 import pandas as pd
+import pytest
 
 
 class TestKICValidation:
@@ -192,7 +193,7 @@ class TestRedisOperations:
         import redis
 
         r = redis.Redis(host="localhost", port=6379, db=0)
-        assert r.ping() == True
+        assert r.ping()
 
     @patch("redis.Redis")
     def test_redis_buffer_operations(self, mock_redis):
@@ -253,9 +254,9 @@ class TestHealthReport:
             "",
             "Summary Statistics:",
             "-" * 40,
-            f"Total KICs Processed: 100",
-            f"Successful Downloads: 95 (95.0%)",
-            f"Failed Downloads: 5 (5.0%)",
+            "Total KICs Processed: 100",
+            "Successful Downloads: 95 (95.0%)",
+            "Failed Downloads: 5 (5.0%)",
             "",
         ]
 

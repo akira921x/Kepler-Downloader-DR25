@@ -18,26 +18,24 @@ Example:
     python kepler_filter.py --input-csv input/koi.csv --source-job output/job-20250906  # ExoMiner is default
 """
 
-import os
-import sys
-import shutil
-import pandas as pd
-import numpy as np
 import argparse
-import sqlite3
-import requests
-import time
 import json
 import logging
-from pathlib import Path
-from typing import Set, List, Dict, Tuple, Optional, Union
-from datetime import datetime
+import shutil
+import sqlite3
+import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm import tqdm
-from enum import Enum
 from dataclasses import dataclass
-import hashlib
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Optional, Set, Tuple
+
+import pandas as pd
+import requests
 from astroquery.mast import Observations
+from tqdm import tqdm
 
 
 class JobMode(Enum):
@@ -280,7 +278,7 @@ class KeplerFilter:
                     schema_version = "v1_standard"
 
                 conn.close()
-            except:
+            except Exception:
                 pass
 
         job_info = JobInfo(
@@ -377,7 +375,7 @@ class KeplerFilter:
             conn = sqlite3.connect(str(self.db_path))
             conn.execute(
                 """
-                INSERT INTO mode_compatibility 
+                INSERT INTO mode_compatibility
                 (source_mode, target_mode, compatible, reason)
                 VALUES (?, ?, ?, ?)
             """,
@@ -479,7 +477,7 @@ class KeplerFilter:
 
             conn.execute(
                 """
-                INSERT INTO filter_operations 
+                INSERT INTO filter_operations
                 (kic_id, source, target_mode, operation, status, has_dvt, file_count)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
@@ -586,7 +584,7 @@ class KeplerFilter:
         conn = sqlite3.connect(str(self.db_path))
         conn.execute(
             """
-            INSERT INTO filter_operations 
+            INSERT INTO filter_operations
             (kic_id, source, target_mode, operation, status, has_dvt, file_count, error_message)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -664,8 +662,8 @@ class KeplerFilter:
                     # Update database
                     conn.execute(
                         """
-                        UPDATE filter_operations 
-                        SET has_dvt = false 
+                        UPDATE filter_operations
+                        SET has_dvt = false
                         WHERE kic_id = ?
                     """,
                         (kic_id,),
@@ -792,9 +790,9 @@ class KeplerFilter:
             if self.missing_kics:
                 f.write(f"\nMissing KICs (not in source): {len(self.missing_kics)}\n")
                 if len(self.missing_kics) <= 20:
-                    f.write(f"Missing KIC IDs: {sorted(list(self.missing_kics))}\n")
+                    f.write(f"Missing KIC IDs: {sorted(self.missing_kics)}\n")
                 else:
-                    f.write(f"First 20 missing KICs: {sorted(list(self.missing_kics))[:20]}\n")
+                    f.write(f"First 20 missing KICs: {sorted(self.missing_kics)[:20]}\n")
 
             # Warnings and recommendations
             if not is_compatible and not self.config.force_mode:
@@ -847,7 +845,7 @@ class KeplerFilter:
 
             # Step 1: Load input CSV
             self.logger.info("\nStep 1: Loading input CSV")
-            csv_data = self.load_input_csv()
+            self.load_input_csv()
 
             # Step 2: Detect source job mode
             self.logger.info("\nStep 2: Analyzing source job")
@@ -927,13 +925,13 @@ def main():
 Examples:
   # Basic usage with KOI file and job
   python kepler_filter.py --input-csv input/koi.csv --source-job output/job-20250906
-  
+
   # Specify target mode (default is exominer)
   python kepler_filter.py --input-csv input/custom.csv --source-job output/job-20250906 --no-exominer  # Use Standard format
-  
+
   # Force mode conversion (use with caution)
   python kepler_filter.py --input-csv input/koi.csv --source-job output/job-20250906 --force-mode
-  
+
   # Disable DVT validation for ExoMiner
   python kepler_filter.py --input-csv input/koi.csv --source-job output/job-20250906 --no-validate-dvt
         """,
