@@ -5,6 +5,7 @@ Setup script for Kepler-Downloader-DR25
 
 import os
 import sys
+
 from setuptools import find_packages, setup
 
 # Add the package directory to path to import version
