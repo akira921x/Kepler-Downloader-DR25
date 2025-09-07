@@ -18,7 +18,6 @@ setup(
     name="kepler-downloader-dr25",
     version="1.1.2",
     author="akira921x",
-    author_email="cl756@gwmail.gwu.edu",
     description="A comprehensive toolkit for downloading and filtering Kepler DR25 FITS files from NASA's MAST archive",
     long_description=long_description,
     long_description_content_type="text/markdown",
