@@ -2,54 +2,147 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-    
-    services:
-      redis:
-        image: redis:latest
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install black ruff mypy types-requests
     
-    - name: Test Redis connection
-      run: |
-        python -c "import redis; r = redis.Redis(); r.ping(); print('Redis OK')"
+    - name: Check formatting with black
+      run: black --check .
     
-    - name: Test script syntax
-      run: |
-        python -m py_compile get-kepler-dr25.py
-        python -m py_compile filter-get-kepler-dr25.py
-        python -m py_compile util/*.py
-        echo "All scripts compile successfully"
+    - name: Lint with ruff
+      run: ruff check .
     
-    - name: Check script help
-      run: |
-        python get-kepler-dr25.py --help
-        python filter-get-kepler-dr25.py --help
+    - name: Type check with mypy
+      run: mypy kepler_downloader_dr25
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     
-    - name: Run basic download test (if needed)
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
       run: |
-        echo "Skipping download test to avoid MAST rate limits"
+        python -m pip install --upgrade pip
+        pip install -e .[test]
+    
+    - name: Run tests with pytest
+      run: |
+        pytest --cov=kepler_downloader_dr25 --cov-report=xml --cov-report=term-missing
+    
+    - name: Upload coverage reports
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: python -m build
+    
+    - name: Check package with twine
+      run: twine check dist/*
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+
+  version-check:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Check version consistency
+      run: |
+        # Extract version from tag
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        echo "Tag version: $TAG_VERSION"
+        
+        # Extract version from pyproject.toml
+        PACKAGE_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        echo "Package version: $PACKAGE_VERSION"
+        
+        # Check if they match
+        if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+          echo "Error: Tag version ($TAG_VERSION) does not match package version ($PACKAGE_VERSION)"
+          exit 1
+        fi
+        echo "Version check passed!"
+
+  publish:
+    needs: [build, version-check]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kepler-downloader-dr25
+    permissions:
+      id-token: write  # Required for trusted publishing
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+    
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        verbose: true
