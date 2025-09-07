@@ -8,7 +8,7 @@ import sys
 from setuptools import find_packages, setup
 
 # Add the package directory to path to import version
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'kepler_downloader_dr25'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "kepler_downloader_dr25"))
 from _version import __version__
 
 # Read the README file
