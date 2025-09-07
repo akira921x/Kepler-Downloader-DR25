@@ -1,5 +1,10 @@
 # Kepler-Downloader-DR25
 
+[![CI Status](https://github.com/akira921x/Kepler-Downloader-DR25/actions/workflows/ci.yml/badge.svg)](https://github.com/akira921x/Kepler-Downloader-DR25/actions/workflows/ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20macOS-lightgrey)](https://github.com/akira921x/Kepler-Downloader-DR25)
+
 ## Research-Oriented Toolkit for Kepler Data Analysis
 
 **This toolkit is designed for researchers studying NASA Kepler Space Telescope data.** It follows the data structure requirements of machine learning frameworks like **[ExoMiner](https://github.com/nasa/ExoMiner)** and **[AstroNet](https://github.com/google-research/exoplanet-ml/tree/master/exoplanet-ml/astronet)** while remaining flexible for diverse research applications beyond these specific frameworks.

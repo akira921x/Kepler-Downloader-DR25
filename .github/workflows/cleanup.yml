@@ -1,0 +1,61 @@
+name: Cleanup Old Workflow Runs
+
+on:
+  schedule:
+    # Run every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  set-retention:
+    name: Configure Retention Settings
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Note about workflow retention
+      run: |
+        echo "GitHub automatically deletes workflow runs after 90 days by default."
+        echo "For public repositories, this can be reduced to 1-90 days."
+        echo ""
+        echo "To change retention period:"
+        echo "1. Go to Settings → Actions → General"
+        echo "2. Under 'Artifact and log retention'"
+        echo "3. Set desired number of days (1-90)"
+        echo ""
+        echo "Current workflow runs can be filtered using:"
+        echo "- status:success - Show only successful runs"
+        echo "- branch:main - Show only main branch runs"
+        echo "- event:push - Show only push events"
+        echo ""
+        echo "URL for successful runs only:"
+        echo "https://github.com/akira921x/Kepler-Downloader-DR25/actions?query=is%3Asuccess"
+    
+    - name: List recent workflow statistics
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "=== Workflow Run Statistics (Last 30 days) ==="
+        
+        # Get date 30 days ago
+        DATE_30_DAYS_AGO=$(date -u -d '30 days ago' '+%Y-%m-%dT%H:%M:%SZ')
+        
+        # Count total runs
+        TOTAL=$(gh run list --repo ${{ github.repository }} --limit 100 --json conclusion,createdAt \
+          | jq --arg date "$DATE_30_DAYS_AGO" '[.[] | select(.createdAt > $date)] | length')
+        
+        # Count successful runs
+        SUCCESS=$(gh run list --repo ${{ github.repository }} --limit 100 --json conclusion,createdAt \
+          | jq --arg date "$DATE_30_DAYS_AGO" '[.[] | select(.createdAt > $date and .conclusion == "success")] | length')
+        
+        # Count failed runs
+        FAILED=$(gh run list --repo ${{ github.repository }} --limit 100 --json conclusion,createdAt \
+          | jq --arg date "$DATE_30_DAYS_AGO" '[.[] | select(.createdAt > $date and .conclusion == "failure")] | length')
+        
+        echo "Total runs: $TOTAL"
+        echo "Successful: $SUCCESS"
+        echo "Failed: $FAILED"
+        
+        if [ "$TOTAL" -gt 0 ]; then
+          SUCCESS_RATE=$((SUCCESS * 100 / TOTAL))
+          echo "Success rate: ${SUCCESS_RATE}%"
+        fi
