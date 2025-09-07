@@ -4,24 +4,28 @@ Setup script for Kepler-Downloader-DR25
 """
 
 from setuptools import setup, find_packages
+import os
 
+# Read the README file
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+# Read requirements
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
     name="kepler-downloader-dr25",
     version="1.0.0",
-    author="Kepler-Downloader-DR25 Project",
+    author="akira921x",
+    author_email="cl756@gwmail.gwu.edu",
     description="A comprehensive toolkit for downloading and filtering Kepler DR25 FITS files from NASA's MAST archive",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/Kepler-Downloader-DR25",
+    url="https://github.com/akira921x/Kepler-Downloader-DR25",
     packages=find_packages(),
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Astronomy",
         "License :: OSI Approved :: Apache Software License",
@@ -30,20 +34,28 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Operating System :: OS Independent",
     ],
     python_requires=">=3.7",
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "kepler-download=get_kepler_dr25:main",
-            "kepler-filter=filter_get_kepler_dr25:main",
-            "kepler-rebuild-db=util.rebuild_database:main",
-            "kepler-check-missing=util.check_missing_kics:main",
-            "kepler-stats=util.generate_stats:main",
+            "kepler-download=kepler_downloader_dr25.downloader:main",
+            "kepler-filter=kepler_downloader_dr25.filter:main",
+            "kepler-rebuild-db=kepler_downloader_dr25.utils.rebuild_database:main",
+            "kepler-check-missing=kepler_downloader_dr25.utils.check_missing_kics:main",
+            "kepler-stats=kepler_downloader_dr25.utils.generate_stats:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "": ["*.md", "*.txt", "LICENSE"],
+        "kepler_downloader_dr25": ["*.md", "*.txt"],
     },
+    project_urls={
+        "Bug Reports": "https://github.com/akira921x/Kepler-Downloader-DR25/issues",
+        "Source": "https://github.com/akira921x/Kepler-Downloader-DR25",
+        "Documentation": "https://github.com/akira921x/Kepler-Downloader-DR25/blob/main/README.md",
+    },
+    keywords="kepler nasa astronomy exoplanet fits mast telescope space data download",
 )
