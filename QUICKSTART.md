@@ -12,6 +12,41 @@ A high-performance toolkit for downloading **NASA Kepler Space Telescope** data 
 **Data Source**: NASA/MAST at Space Telescope Science Institute (STScI)  
 **Archive**: https://archive.stsci.edu/kepler/
 
+## Installation
+
+### Quick Install (GitHub)
+
+```bash
+# Clone and install
+git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
+cd Kepler-Downloader-DR25
+pip install -r requirements.txt
+
+# Use immediately
+python get-kepler-dr25.py input/your_kics.csv
+```
+
+### Package Installation
+
+```bash
+# Install as a package for command-line tools
+git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
+cd Kepler-Downloader-DR25
+pip install -e .
+
+# Now use command-line tools from anywhere
+kepler-download input/your_kics.csv
+kepler-filter --input-csv input/kics.csv --source-job kepler_downloads/job-XXX
+kepler-stats kepler_downloads/job-XXX
+```
+
+### PyPI Installation (Coming Soon)
+
+```bash
+# Once published to PyPI:
+# pip install kepler-downloader-dr25
+```
+
 ## Main Download Workflow
 
 ### 1. Setup Redis (Recommended)
@@ -34,14 +69,9 @@ docker run -d -p 6379:6379 --name redis-kepler redis:latest
 redis-cli ping  # Should return "PONG"
 ```
 
-### 2. Install Python Dependencies
+### 2. Prepare Your Data
 
-```bash
-cd /path/to/your/Kepler-Downloader-DR25
-pip install -r requirements.txt
-```
-
-### 3. Download Data
+### 3. Download Kepler Data
 
 #### Option A: ExoMiner Format with DVT Validation (Default)
 ```bash
@@ -324,7 +354,7 @@ redis-cli
 - **Version history**: See [CHANGELOG.md](CHANGELOG.md) 
 - **Debug logs**: Check `kepler_downloads/job-*/reports/`
 - **Health reports**: Review `kepler_downloads/job-*/health_check_report.txt`
-- **Issues**: Report at https://github.com/yourusername/Kepler-Downloader-DR25/issues
+- **Issues**: Report at https://github.com/akira921x/Kepler-Downloader-DR25/issues
 
 ## Data Attribution
 

@@ -198,20 +198,73 @@ python filter-get-kepler-dr25.py \
    docker run -d -p 6379:6379 --name redis-kepler redis:latest
    ```
 
-### Python Dependencies
+### Installation Options
 
+#### Option 1: Install from GitHub (Recommended)
 ```bash
-cd /path/to/your/Kepler-Downloader-DR25
+# Clone the repository
+git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
+cd Kepler-Downloader-DR25
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Use scripts directly
+python get-kepler-dr25.py input/your_targets.csv
+python filter-get-kepler-dr25.py --input-csv input/kics.csv --source-job kepler_downloads/job-XXX
 ```
 
-Required packages:
+#### Option 2: Install as Package
+```bash
+# Clone and install as package
+git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
+cd Kepler-Downloader-DR25
+pip install -e .
+
+# Now you can use the command-line tools from anywhere
+kepler-download input/your_targets.csv
+kepler-filter --input-csv input/kics.csv --source-job kepler_downloads/job-XXX
+kepler-stats kepler_downloads/job-XXX
+kepler-rebuild kepler_downloads/job-XXX
+kepler-check-missing input/targets.csv kepler_downloads/job-XXX
+```
+
+#### Option 3: Install from PyPI (Coming Soon)
+```bash
+# Once published to PyPI, you'll be able to install directly:
+# pip install kepler-downloader-dr25
+```
+
+### Python Dependencies
+
+Required packages (automatically installed with pip):
 - `pandas` - Data processing
 - `astroquery` - MAST archive interface
 - `redis` - Redis client for buffering
 - `requests` - HTTP requests
 - `numpy` - Numerical operations
 - `tqdm` - Progress bars
+
+## Quick Start
+
+```bash
+# Install
+git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
+cd Kepler-Downloader-DR25
+pip install -r requirements.txt
+
+# Download Kepler data (ExoMiner format by default)
+python get-kepler-dr25.py input/your_targets.csv
+
+# Filter existing data
+python filter-get-kepler-dr25.py --input-csv input/koi.csv --source-job kepler_downloads/job-XXX
+
+# Check for missing KICs
+python util/check_missing_kics.py input/targets.csv kepler_downloads/job-XXX
+
+# Generate statistics
+python util/generate_stats.py kepler_downloads/job-XXX
+```
 
 ## Usage
 
@@ -505,32 +558,6 @@ python util/rebuild_database.py kepler_downloads/job-YYYYMMDD_HHMMSS
 - Review error messages in health report
 - Retry with `--retry-failed`
 
-## Installation Options
-
-### Option 1: Direct Usage (Recommended)
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/Kepler-Downloader-DR25.git
-cd Kepler-Downloader-DR25
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run scripts directly
-python get-kepler-dr25.py input/your_targets.csv
-```
-
-### Option 2: Package Installation
-```bash
-# Install as a package
-pip install -e .
-
-# Use command-line tools
-kepler-download input/your_targets.csv
-kepler-filter --input-csv input/kics.csv --source-job kepler_downloads/job-XXX
-kepler-stats kepler_downloads/job-XXX
-```
-
 ## Related Projects
 
 ### Machine Learning Frameworks for Exoplanet Detection
@@ -546,7 +573,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 ### Development Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/Kepler-Downloader-DR25.git
+git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
 cd Kepler-Downloader-DR25
 
 # Create virtual environment
@@ -555,6 +582,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install in development mode
 pip install -e .
+
+# Run tests (if available)
+python -m pytest tests/
 ```
 
 ## Version History
