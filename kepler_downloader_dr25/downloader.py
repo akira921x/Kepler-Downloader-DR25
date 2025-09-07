@@ -11,13 +11,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from threading import Lock, Timer
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
-import coredis
 import pandas as pd
+import redis
 import requests
 from astroquery.mast import Observations
-from coredis.exceptions import ConnectionError, TimeoutError
 
 
 class FastKeplerDownloader:
@@ -89,7 +88,7 @@ class FastKeplerDownloader:
         self.removed_kics: List[Dict[str, Any]] = []  # Track removed KICs
 
         # Redis configuration
-        self.redis_client: Optional[coredis.Redis] = None
+        self.redis_client: Optional[redis.Redis] = None
         self.redis_config = {"host": redis_host, "port": redis_port, "db": redis_db}
         self.redis_keys = {
             "csv_data": f"{job_id}:csv_data",
@@ -136,7 +135,7 @@ class FastKeplerDownloader:
                 redis_port = self.redis_config.get("port", 6379)
                 redis_db = self.redis_config.get("db", 0)
 
-                self.redis_client = coredis.Redis(
+                self.redis_client = redis.Redis(
                     host=(str(redis_host) if redis_host is not None else "localhost"),
                     port=(int(redis_port) if isinstance(redis_port, (int, str)) else 6379),
                     db=(int(redis_db) if isinstance(redis_db, (int, str)) else 0),
@@ -158,7 +157,7 @@ class FastKeplerDownloader:
                 logging.info(f"Redis connection established for job {self.job_id}")
                 return
 
-            except (ConnectionError, TimeoutError) as e:
+            except (redis.ConnectionError, redis.TimeoutError) as e:
                 if attempt < max_retries - 1:
                     logging.warning(
                         f"Redis connection attempt {attempt + 1} failed: {e}. Retrying in {retry_delay}s..."
@@ -280,7 +279,7 @@ class FastKeplerDownloader:
 
             while True:
                 # Pop batch of records from Redis list
-                records = self.redis_client.lrange(records_key, 0, sync_batch_size - 1)
+                records = cast(List[bytes], self.redis_client.lrange(records_key, 0, sync_batch_size - 1))
                 if not records:
                     break
 
@@ -323,7 +322,7 @@ class FastKeplerDownloader:
             files_key = self.redis_keys["file_inventory"]
 
             while True:
-                file_records = self.redis_client.lrange(files_key, 0, sync_batch_size - 1)
+                file_records = cast(List[bytes], self.redis_client.lrange(files_key, 0, sync_batch_size - 1))
                 if not file_records:
                     break
 
@@ -349,7 +348,7 @@ class FastKeplerDownloader:
 
             # Sync DVT status
             dvt_key = self.redis_keys["dvt_status"]
-            dvt_data = self.redis_client.hgetall(dvt_key)
+            dvt_data = cast(Dict[bytes, bytes], self.redis_client.hgetall(dvt_key))
 
             for kic_bytes, has_dvt_bytes in dvt_data.items():
                 kic = int(kic_bytes.decode())
