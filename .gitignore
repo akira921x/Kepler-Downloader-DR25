@@ -9,6 +9,13 @@ venv/
 ENV/
 .venv
 
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+
 # Virtual environments
 bin/
 lib/
@@ -43,6 +50,12 @@ appendonly.aof
 *.md.local
 .cursorrules
 .ai-config/
+CLAUDE.md
+
+# Internal documentation
+GITHUB_ENVIRONMENTS_SETUP.md
+PYPI_TRUSTED_PUBLISHING.md
+PYPI_UPLOAD.md
 
 # Sensitive data
 *.key

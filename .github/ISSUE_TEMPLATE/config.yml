@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/akira921x/Kepler-Downloader-DR25/blob/main/README.md
+    about: Please read the documentation first
+  - name: Quick Start Guide
+    url: https://github.com/akira921x/Kepler-Downloader-DR25/blob/main/QUICKSTART.md
+    about: Check the quickstart guide for basic usage
