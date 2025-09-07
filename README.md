@@ -199,8 +199,9 @@ For detailed security information, see [SECURITY.md](docs/SECURITY.md).
 
 ### Prerequisites
 
-1. **Python 3.7+** with pip installed
-2. **Redis Server** (required for reliable database operations)
+1. **Python 3.8+** with pip installed
+2. **Redis Server** (optional but recommended for reliability)
+3. **Operating System**: Windows, macOS, or Linux
    
    Install Redis:
    ```bash
@@ -210,8 +211,15 @@ For detailed security information, see [SECURITY.md](docs/SECURITY.md).
    # Ubuntu/Debian
    sudo apt install redis-server && sudo systemctl start redis
    
-   # Docker
+   # Windows (Option 1: WSL2)
+   wsl --install
+   # Then follow Ubuntu instructions above
+   
+   # Windows (Option 2: Docker)
    docker run -d -p 6379:6379 --name redis-kepler redis:latest
+   
+   # Windows (Option 3: Memurai - Redis for Windows)
+   # Download from: https://www.memurai.com/get-memurai
    ```
 
 ### Installation Options

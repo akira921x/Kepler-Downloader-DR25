@@ -164,6 +164,13 @@ brew services start redis
 
 # Start Redis on Linux  
 sudo systemctl start redis
+
+# Start Redis on Windows (WSL2)
+wsl
+sudo service redis-server start
+
+# Or use Docker on Windows
+docker run -d -p 6379:6379 redis
 ```
 
 ### Network Timeouts
