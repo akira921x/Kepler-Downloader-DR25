@@ -1,4 +1,4 @@
-name: Test Kepler Downloader
+name: CI
 
 on:
   push:
