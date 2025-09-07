@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Virtual environments
+bin/
+lib/
+include/
+pip-selfcheck.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+output/
+logs/
+input/*.csv
+!input/.gitkeep
+!input_samples/
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+
+# Redis
+dump.rdb
+appendonly.aof
+
+# AI Support Configuration Files
+*.md.local
+.cursorrules
+.ai-config/
+
+# Sensitive data
+*.key
+*.pem
+*.env
+.env.local
+.env.*.local
+config.local.py
+secrets.json
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+!logs/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+!demo.ipynb
+!kepler_downloader_demo.ipynb
+
+# Data files (usually too large for git)
+*.fits
+*.fit
+*.fts
+
+# Backup files
+*.bak
+*.backup
+*_backup/
+backup/
+
+# Local configuration
+*.local
+.local/
+
+# Kepler download output directory
+kepler_downloads/
