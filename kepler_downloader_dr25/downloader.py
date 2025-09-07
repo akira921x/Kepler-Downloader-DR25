@@ -101,7 +101,8 @@ class FastKeplerDownloader:
         self.is_syncing = False
 
         # Create job directory and subdirectories
-        os.makedirs(self.job_dir, exist_ok=True)
+        if self.job_dir:
+            os.makedirs(self.job_dir, exist_ok=True)
         if self.exominer_format:
             os.makedirs(self.kepler_dir, exist_ok=True)
             if self.backup_no_dvt:
@@ -126,7 +127,9 @@ class FastKeplerDownloader:
             try:
                 # Security: Configure Redis with connection limits and timeouts
                 self.redis_client = redis.Redis(
-                    **self.redis_config,
+                    host=self.redis_config.get('host', 'localhost'),
+                    port=self.redis_config.get('port', 6379),
+                    db=self.redis_config.get('db', 0),
                     decode_responses=False,
                     socket_connect_timeout=5,
                     socket_timeout=5,
@@ -1030,7 +1033,7 @@ class FastKeplerDownloader:
         logging.info(f"Retry complete: {retry_stats['succeeded']}/{retry_stats['attempted']} succeeded")
         return retry_stats
 
-    def generate_health_report(self, retry_stats: dict = None) -> str:
+    def generate_health_report(self, retry_stats: Optional[dict] = None) -> str:
         """Generate comprehensive health check report with DVT statistics."""
         # Ensure ALL data is synced before generating report
         if self.redis_client is not None:

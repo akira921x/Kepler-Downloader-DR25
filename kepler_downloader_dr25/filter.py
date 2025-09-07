@@ -351,6 +351,9 @@ class KeplerFilter:
         Returns:
             Tuple of (is_compatible, reason)
         """
+        if self.source_job_info is None:
+            return False, "Source job info not available"
+            
         if self.source_job_info.mode == JobMode.UNKNOWN:
             return False, "Source job mode could not be determined"
 
@@ -404,6 +407,9 @@ class KeplerFilter:
         Returns:
             True if successful
         """
+        if self.source_job_info is None:
+            return False
+            
         copied_files = 0
 
         if self.source_job_info.mode == JobMode.EXOMINER:
@@ -503,7 +509,7 @@ class KeplerFilter:
             A dictionary with download results.
         """
         if not self.config.download_missing:
-            return False
+            return {"kic": kic_id, "success": False, "files_downloaded": 0, "has_dvt": False, "file_paths": [], "error": "Download disabled"}
 
         result = {
             "kic": kic_id,
@@ -607,7 +613,7 @@ class KeplerFilter:
         else:
             self.stats["failed_kics"] += 1
 
-        return result["success"]
+        return result
 
     def _get_exominer_path(self, kic_int: int, filename: str) -> Path:
         kic_padded = f"{kic_int:09d}"
@@ -691,7 +697,7 @@ class KeplerFilter:
         """
         Sync database records from source job
         """
-        if not self.source_job_info.has_database:
+        if self.source_job_info is None or not self.source_job_info.has_database:
             return
 
         self.logger.info("Syncing database from source job")
@@ -753,15 +759,18 @@ class KeplerFilter:
             # Source job information
             f.write("Source Job Analysis:\n")
             f.write("-" * 30 + "\n")
-            f.write(f"Detected Mode: {self.source_job_info.mode.value}\n")
-            f.write(f"Directory Structure: {self.source_job_info.directory_structure}\n")
-            f.write(f"Total KICs: {self.source_job_info.kic_count}\n")
-            f.write(f"Total Files: {self.source_job_info.file_count}\n")
-            f.write(f"Total Size: {self.source_job_info.total_size_gb:.2f} GB\n")
-            f.write(f"Has DVT Files: {self.source_job_info.has_dvt_files}\n")
-            f.write(f"Has Database: {self.source_job_info.has_database}\n")
-            if self.source_job_info.db_schema_version:
-                f.write(f"DB Schema: {self.source_job_info.db_schema_version}\n")
+            if self.source_job_info:
+                f.write(f"Detected Mode: {self.source_job_info.mode.value}\n")
+                f.write(f"Directory Structure: {self.source_job_info.directory_structure}\n")
+                f.write(f"Total KICs: {self.source_job_info.kic_count}\n")
+                f.write(f"Total Files: {self.source_job_info.file_count}\n")
+                f.write(f"Total Size: {self.source_job_info.total_size_gb:.2f} GB\n")
+                f.write(f"Has DVT Files: {self.source_job_info.has_dvt_files}\n")
+                f.write(f"Has Database: {self.source_job_info.has_database}\n")
+                if self.source_job_info.db_schema_version:
+                    f.write(f"DB Schema: {self.source_job_info.db_schema_version}\n")
+            else:
+                f.write("Source job info not available\n")
             f.write("\n")
 
             # Mode compatibility
@@ -801,7 +810,7 @@ class KeplerFilter:
                 f.write("Data structure conversion may be required.\n")
                 f.write("Use --force-mode to override (use with caution).\n")
 
-            if self.config.target_mode == JobMode.EXOMINER and not self.source_job_info.has_dvt_files:
+            if self.source_job_info and self.config.target_mode == JobMode.EXOMINER and not self.source_job_info.has_dvt_files:
                 f.write("\n⚠️  WARNING: ExoMiner mode requires DVT files!\n")
                 f.write("The source job does not contain DVT files.\n")
                 f.write("Consider using Standard mode or downloading DVT files.\n")
@@ -819,11 +828,11 @@ class KeplerFilter:
                 "validate_dvt": self.config.validate_dvt,
             },
             "source_job_info": {
-                "mode": self.source_job_info.mode.value,
-                "kic_count": self.source_job_info.kic_count,
-                "file_count": self.source_job_info.file_count,
-                "total_size_gb": self.source_job_info.total_size_gb,
-                "has_dvt_files": self.source_job_info.has_dvt_files,
+                "mode": self.source_job_info.mode.value if self.source_job_info else "unknown",
+                "kic_count": self.source_job_info.kic_count if self.source_job_info else 0,
+                "file_count": self.source_job_info.file_count if self.source_job_info else 0,
+                "total_size_gb": self.source_job_info.total_size_gb if self.source_job_info else 0.0,
+                "has_dvt_files": self.source_job_info.has_dvt_files if self.source_job_info else False,
             },
             "statistics": self.stats,
             "mode_compatible": is_compatible,
