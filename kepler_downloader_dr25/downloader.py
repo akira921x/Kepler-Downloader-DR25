@@ -14,7 +14,8 @@ from threading import Lock, Timer
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
-import redis
+import coredis
+from coredis.exceptions import ConnectionError, TimeoutError
 import requests
 from astroquery.mast import Observations
 
@@ -88,7 +89,7 @@ class FastKeplerDownloader:
         self.removed_kics: List[Dict[str, Any]] = []  # Track removed KICs
 
         # Redis configuration
-        self.redis_client: Optional[redis.Redis[bytes]] = None
+        self.redis_client: Optional[coredis.Redis] = None
         self.redis_config = {"host": redis_host, "port": redis_port, "db": redis_db}
         self.redis_keys = {
             "csv_data": f"{job_id}:csv_data",
@@ -135,7 +136,7 @@ class FastKeplerDownloader:
                 redis_port = self.redis_config.get("port", 6379)
                 redis_db = self.redis_config.get("db", 0)
 
-                self.redis_client = redis.Redis(
+                self.redis_client = coredis.Redis(
                     host=(str(redis_host) if redis_host is not None else "localhost"),
                     port=(int(redis_port) if isinstance(redis_port, (int, str)) else 6379),
                     db=(int(redis_db) if isinstance(redis_db, (int, str)) else 0),
@@ -157,7 +158,7 @@ class FastKeplerDownloader:
                 logging.info(f"Redis connection established for job {self.job_id}")
                 return
 
-            except (redis.ConnectionError, redis.TimeoutError) as e:
+            except (ConnectionError, TimeoutError) as e:
                 if attempt < max_retries - 1:
                     logging.warning(
                         f"Redis connection attempt {attempt + 1} failed: {e}. Retrying in {retry_delay}s..."
