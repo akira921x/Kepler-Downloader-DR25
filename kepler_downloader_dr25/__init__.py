@@ -3,7 +3,7 @@ Kepler-Downloader-DR25
 A comprehensive toolkit for downloading and filtering Kepler DR25 FITS files from NASA's MAST archive.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "akira921x"
 __email__ = "cl756@gwmail.gwu.edu"
 
