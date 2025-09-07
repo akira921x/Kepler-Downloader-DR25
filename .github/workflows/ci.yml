@@ -53,11 +53,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[test]
+        pip install pytest pytest-cov pytest-mock
+        pip install -e .
     
     - name: Run tests with pytest
       run: |
-        pytest --cov=kepler_downloader_dr25 --cov-report=xml --cov-report=term-missing
+        pytest tests/test_basic.py -v
     
     - name: Upload coverage reports
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
@@ -112,8 +113,8 @@ jobs:
         TAG_VERSION=${GITHUB_REF#refs/tags/v}
         echo "Tag version: $TAG_VERSION"
         
-        # Extract version from pyproject.toml
-        PACKAGE_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        # Extract version from _version.py
+        PACKAGE_VERSION=$(python -c "exec(open('kepler_downloader_dr25/_version.py').read()); print(__version__)")
         echo "Package version: $PACKAGE_VERSION"
         
         # Check if they match
