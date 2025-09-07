@@ -157,6 +157,30 @@ class FastKeplerDownloader:
                     )
                     self.redis_client = None
 
+    def __del__(self):
+        """Destructor to ensure proper resource cleanup."""
+        try:
+            # Stop sync timer
+            self._stop_sync_timer()
+
+            # Final sync if needed
+            if self.redis_client is not None:
+                try:
+                    self._sync_redis_to_db()
+                except Exception:
+                    pass
+
+            # Close Redis connection
+            if self.redis_client is not None:
+                try:
+                    self.redis_client.close()
+                except Exception:
+                    pass
+
+        except Exception:
+            # Silently ignore any errors during cleanup
+            pass
+
     def _init_database(self):
         """Initialize DuckDB database with enhanced schema for DVT tracking."""
         conn = sqlite3.connect(self.db_path)
@@ -241,15 +265,19 @@ class FastKeplerDownloader:
 
     def _periodic_sync(self):
         """Periodically sync Redis buffer to database."""
-        if not self.is_syncing and self.redis_client is not None:
+        with self.lock:
+            if self.is_syncing or self.redis_client is None:
+                return
             self.is_syncing = True
-            try:
-                self._sync_redis_to_db()
-            except Exception as e:
-                logging.error(f"Error during periodic sync: {e}")
-            finally:
+
+        try:
+            self._sync_redis_to_db()
+        except Exception as e:
+            logging.error(f"Error during periodic sync: {e}")
+        finally:
+            with self.lock:
                 self.is_syncing = False
-                self._start_sync_timer()  # Restart timer for next sync
+            self._start_sync_timer()  # Restart timer for next sync
 
     def _sync_redis_to_db(self):
         """Sync data from Redis buffers to DuckDB database."""
@@ -257,100 +285,98 @@ class FastKeplerDownloader:
             return
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            with sqlite3.connect(self.db_path) as conn:
+                # Sync download records
+                records_key = self.redis_keys["download_records"]
+                batch_size = 100
 
-            # Sync download records
-            records_key = self.redis_keys["download_records"]
-            batch_size = 100
+                while True:
+                    # Pop batch of records from Redis list
+                    records = self.redis_client.lrange(records_key, 0, batch_size - 1)
+                    if not records:
+                        break
 
-            while True:
-                # Pop batch of records from Redis list
-                records = self.redis_client.lrange(records_key, 0, batch_size - 1)
-                if not records:
-                    break
+                    # Process records
+                    for record_data in records:
+                        record = json.loads(record_data.decode())
 
-                # Process records
-                for record_data in records:
-                    record = json.loads(record_data.decode())
+                        # Insert or update with DVT status
+                        conn.execute(
+                            """
+                            INSERT INTO download_records
+                            (kic, success, files_downloaded, llc_files, dvt_files, has_dvt, error_message, job_id, file_paths)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(kic) DO UPDATE SET
+                                success = EXCLUDED.success,
+                                files_downloaded = EXCLUDED.files_downloaded,
+                                llc_files = EXCLUDED.llc_files,
+                                dvt_files = EXCLUDED.dvt_files,
+                                has_dvt = EXCLUDED.has_dvt,
+                                error_message = EXCLUDED.error_message,
+                                file_paths = EXCLUDED.file_paths
+                        """,
+                            (
+                                record["kic"],
+                                record["success"],
+                                record["files_downloaded"],
+                                record.get("llc_files", 0),
+                                record.get("dvt_files", 0),
+                                record.get("has_dvt", record.get("dvt_files", 0) > 0),
+                                record.get("error"),
+                                self.job_id,
+                                json.dumps(record.get("file_paths", [])),
+                            ),
+                        )
 
-                    # Insert or update with DVT status
-                    conn.execute(
-                        """
-                        INSERT INTO download_records
-                        (kic, success, files_downloaded, llc_files, dvt_files, has_dvt, error_message, job_id, file_paths)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(kic) DO UPDATE SET
-                            success = EXCLUDED.success,
-                            files_downloaded = EXCLUDED.files_downloaded,
-                            llc_files = EXCLUDED.llc_files,
-                            dvt_files = EXCLUDED.dvt_files,
-                            has_dvt = EXCLUDED.has_dvt,
-                            error_message = EXCLUDED.error_message,
-                            file_paths = EXCLUDED.file_paths
-                    """,
-                        (
-                            record["kic"],
-                            record["success"],
-                            record["files_downloaded"],
-                            record.get("llc_files", 0),
-                            record.get("dvt_files", 0),
-                            record.get("has_dvt", record.get("dvt_files", 0) > 0),
-                            record.get("error"),
-                            self.job_id,
-                            json.dumps(record.get("file_paths", [])),
-                        ),
-                    )
+                    # Remove processed records from Redis
+                    self.redis_client.ltrim(records_key, batch_size, -1)
 
-                # Remove processed records from Redis
-                self.redis_client.ltrim(records_key, batch_size, -1)
+                # Sync file inventory
+                files_key = self.redis_keys["file_inventory"]
 
-            # Sync file inventory
-            files_key = self.redis_keys["file_inventory"]
+                while True:
+                    file_records = self.redis_client.lrange(files_key, 0, batch_size - 1)
+                    if not file_records:
+                        break
 
-            while True:
-                file_records = self.redis_client.lrange(files_key, 0, batch_size - 1)
-                if not file_records:
-                    break
+                    for file_data in file_records:
+                        file_record = json.loads(file_data.decode())
 
-                for file_data in file_records:
-                    file_record = json.loads(file_data.decode())
+                        conn.execute(
+                            """
+                            INSERT INTO file_inventory
+                            (kic, file_type, file_path, file_size, job_id)
+                            VALUES (?, ?, ?, ?, ?)
+                        """,
+                            (
+                                file_record["kic"],
+                                file_record["file_type"],
+                                file_record["file_path"],
+                                file_record["file_size"],
+                                self.job_id,
+                            ),
+                        )
 
-                    conn.execute(
-                        """
-                        INSERT INTO file_inventory
-                        (kic, file_type, file_path, file_size, job_id)
-                        VALUES (?, ?, ?, ?, ?)
-                    """,
-                        (
-                            file_record["kic"],
-                            file_record["file_type"],
-                            file_record["file_path"],
-                            file_record["file_size"],
-                            self.job_id,
-                        ),
-                    )
+                    self.redis_client.ltrim(files_key, batch_size, -1)
 
-                self.redis_client.ltrim(files_key, batch_size, -1)
+                # Sync DVT status
+                dvt_key = self.redis_keys["dvt_status"]
+                dvt_data = self.redis_client.hgetall(dvt_key)
 
-            # Sync DVT status
-            dvt_key = self.redis_keys["dvt_status"]
-            dvt_data = self.redis_client.hgetall(dvt_key)
+                for kic_bytes, has_dvt_bytes in dvt_data.items():
+                    kic = int(kic_bytes.decode())
+                    has_dvt = has_dvt_bytes.decode() == "true"
+                    self.dvt_status[kic] = has_dvt
 
-            for kic_bytes, has_dvt_bytes in dvt_data.items():
-                kic = int(kic_bytes.decode())
-                has_dvt = has_dvt_bytes.decode() == "true"
-                self.dvt_status[kic] = has_dvt
+                # Log sync success before committing
+                records_count = conn.execute("SELECT COUNT(*) FROM download_records").fetchone()[0]
+                files_count = conn.execute("SELECT COUNT(*) FROM file_inventory").fetchone()[0]
 
-            # Log sync success before committing
-            records_count = conn.execute("SELECT COUNT(*) FROM download_records").fetchone()[0]
-            files_count = conn.execute("SELECT COUNT(*) FROM file_inventory").fetchone()[0]
+                # CRITICAL: Commit the transaction before closing
+                conn.commit()
 
-            # CRITICAL: Commit the transaction before closing
-            conn.commit()
-            conn.close()
-
-            if records_count > 0 or files_count > 0:
-                logging.debug(f"Synced to DB: {records_count} download records, {files_count} file inventory items")
+                if records_count > 0 or files_count > 0:
+                    logging.debug(f"Synced to DB: {records_count} download records, {files_count} file inventory items")
 
         except Exception as e:
             logging.error(f"Error syncing Redis to database: {e}")
@@ -540,25 +566,58 @@ class FastKeplerDownloader:
         """
         Download a file from a URL to a target path with retry logic.
         """
+        temp_path = target_path + ".tmp"
+        chunk_size = 64 * 1024  # 64KB chunks for better performance
+
         for attempt in range(max_retries):
             try:
                 response = requests.get(url, stream=True, timeout=30)
                 response.raise_for_status()
 
-                with open(target_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
+                # Get file size for large file detection
+                total_size = int(response.headers.get("content-length", 0))
+
+                # Write to temporary file first
+                with open(temp_path, "wb") as f:
+                    downloaded = 0
+                    for chunk in response.iter_content(chunk_size=chunk_size):
                         if chunk:
                             f.write(chunk)
+                            downloaded += len(chunk)
 
+                            # Log progress for large files (>100MB)
+                            if total_size > 100 * 1024 * 1024 and total_size > 0:
+                                if downloaded % (10 * 1024 * 1024) == 0:  # Every 10MB
+                                    progress = downloaded / total_size * 100
+                                    logging.debug(f"Download progress: {progress:.1f}%")
+
+                # Atomic rename after successful download
+                os.rename(temp_path, target_path)
                 return True
 
             except requests.exceptions.RequestException as e:
+                # Clean up temporary file if it exists
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except OSError:
+                        pass
+
                 if attempt < max_retries - 1:
                     logging.debug(f"Download attempt {attempt + 1} failed, retrying: {e}")
                     time.sleep(2**attempt)  # Exponential backoff
                 else:
                     logging.error(f"Failed to download after {max_retries} attempts: {e}")
                     return False
+            except Exception as e:
+                # Clean up temporary file on any other error
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except OSError:
+                        pass
+                logging.error(f"Unexpected error during download: {e}")
+                return False
 
         return False
 
@@ -1182,8 +1241,26 @@ def main():
             kic_column = df.columns[0]
             logging.warning(f"No standard KIC column found, using first column: {kic_column}")
 
-        kic_list = df[kic_column].dropna().astype(str).tolist()
-        logging.info(f"Loaded {len(kic_list)} KICs from {args.csv_file}")
+        # Safe conversion and validation of KIC IDs
+        def safe_kic_conversion(value):
+            """Convert and validate KIC value to string, handling numeric types properly."""
+            try:
+                # Convert to float first, then to int to avoid scientific notation
+                kic_int = int(float(value))
+
+                # Validate KIC ID range (Kepler Input Catalog valid range)
+                if 757076 <= kic_int <= 12508254:
+                    return str(kic_int)
+                else:
+                    logging.warning(f"KIC ID {kic_int} is outside the valid Kepler range (757076-12508254)")
+                    return None
+            except (ValueError, TypeError):
+                logging.warning(f"Invalid KIC value: {value}")
+                return None
+
+        kic_series = df[kic_column].dropna().apply(safe_kic_conversion)
+        kic_list = kic_series.dropna().tolist()
+        logging.info(f"Loaded {len(kic_list)} valid KICs from {args.csv_file}")
 
     except Exception as e:
         logging.error(f"Failed to read CSV file: {e}")

@@ -342,10 +342,10 @@ class KeplerFilter:
 
         # Copy CSV to input folder for reference
         shutil.copy2(self.config.input_csv, self.input_dir / self.config.input_csv.name)
-        
+
         # Also save a list of KICs for quick reference
         kic_list_path = self.input_dir / "kic_list.txt"
-        with open(kic_list_path, 'w') as f:
+        with open(kic_list_path, "w") as f:
             f.write(f"# Total KICs: {len(self.target_kics)}\n")
             f.write(f"# Source CSV: {self.config.input_csv.name}\n")
             f.write(f"# Timestamp: {datetime.now().isoformat()}\n\n")

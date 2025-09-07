@@ -3,8 +3,13 @@
 Setup script for Kepler-Downloader-DR25
 """
 
-
+import os
+import sys
 from setuptools import find_packages, setup
+
+# Add the package directory to path to import version
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'kepler_downloader_dr25'))
+from _version import __version__
 
 # Read the README file
 with open("README.md", encoding="utf-8") as fh:
@@ -16,7 +21,7 @@ with open("requirements.txt", encoding="utf-8") as fh:
 
 setup(
     name="kepler-downloader-dr25",
-    version="1.1.8",
+    version=__version__,
     author="akira921x",
     author_email="noreply@use-github-issues.com",
     description="A comprehensive toolkit for downloading and filtering Kepler DR25 FITS files from NASA's MAST archive",

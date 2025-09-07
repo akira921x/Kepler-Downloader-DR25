@@ -71,6 +71,7 @@ secrets.json
 *.temp
 *.log
 !logs/.gitkeep
+tmp/
 
 # Jupyter
 .ipynb_checkpoints/

@@ -113,7 +113,7 @@ class FastKeplerDownloader:
         if self.job_dir:
             self.reports_dir = os.path.join(self.job_dir, "reports")
             os.makedirs(self.reports_dir, exist_ok=True)
-            
+
             # Input directory to store original CSV files
             self.input_dir = os.path.join(self.job_dir, "input")
             os.makedirs(self.input_dir, exist_ok=True)
@@ -867,7 +867,7 @@ class FastKeplerDownloader:
 
     def download_kics(self, kic_list: list, input_csv_path: str = None) -> dict:
         """Download FITS files for a list of KICs with DVT filtering.
-        
+
         Args:
             kic_list: List of KIC IDs to download
             input_csv_path: Path to the original input CSV file (optional)
@@ -881,24 +881,24 @@ class FastKeplerDownloader:
         if self.exominer_format:
             logging.info(f"DVT filtering: {'Strict' if self.strict_dvt else 'Post-download'}")
             logging.info(f"No-DVT handling: {'Backup' if self.backup_no_dvt else 'Remove'}")
-        
+
         # Save input CSV to job folder for future reference
         logging.debug(f"Input CSV path: {input_csv_path}")
         logging.debug(f"File exists: {os.path.exists(input_csv_path) if input_csv_path else False}")
         logging.debug(f"Has input_dir: {hasattr(self, 'input_dir')}")
-        if hasattr(self, 'input_dir'):
+        if hasattr(self, "input_dir"):
             logging.debug(f"Input dir: {self.input_dir}")
-        
-        if input_csv_path and os.path.exists(input_csv_path) and hasattr(self, 'input_dir'):
+
+        if input_csv_path and os.path.exists(input_csv_path) and hasattr(self, "input_dir"):
             try:
                 csv_filename = os.path.basename(input_csv_path)
                 dest_path = os.path.join(self.input_dir, csv_filename)
                 shutil.copy2(input_csv_path, dest_path)
                 logging.info(f"Saved input CSV to: {dest_path}")
-                
+
                 # Also save a list of KICs for quick reference
                 kic_list_path = os.path.join(self.input_dir, "kic_list.txt")
-                with open(kic_list_path, 'w') as f:
+                with open(kic_list_path, "w") as f:
                     f.write(f"# Total KICs: {len(kic_list)}\n")
                     f.write(f"# Job ID: {self.job_id}\n")
                     f.write(f"# Timestamp: {datetime.now().isoformat()}\n\n")
