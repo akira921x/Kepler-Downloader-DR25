@@ -5,7 +5,7 @@ Unit tests for the downloader module
 import os
 import sqlite3
 import tempfile
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
