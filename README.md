@@ -185,54 +185,38 @@ python filter-get-kepler-dr25.py \
    
    Install Redis:
    ```bash
-   # macOS with Homebrew
-   brew install redis
-   brew services start redis
+   # macOS
+   brew install redis && brew services start redis
    
    # Ubuntu/Debian
-   sudo apt update
-   sudo apt install redis-server
-   sudo systemctl start redis
+   sudo apt install redis-server && sudo systemctl start redis
    
-   # Or run with Docker
+   # Docker
    docker run -d -p 6379:6379 --name redis-kepler redis:latest
    ```
 
 ### Installation Options
 
-#### Option 1: Install from GitHub (Recommended)
+#### Option 1: Install from PyPI (Recommended)
 ```bash
-# Clone the repository
+# Install the package
+pip install kepler-downloader-dr25
+
+# Use command-line tools
+kepler-download input/your_targets.csv
+kepler-filter --input-csv input/kics.csv --source-job kepler_downloads/job-XXX
+kepler-stats kepler_downloads/job-XXX
+```
+
+#### Option 2: Install from GitHub
+```bash
+# Clone and install
 git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
 cd Kepler-Downloader-DR25
-
-# Install dependencies
 pip install -r requirements.txt
 
 # Use scripts directly
 python get-kepler-dr25.py input/your_targets.csv
-python filter-get-kepler-dr25.py --input-csv input/kics.csv --source-job kepler_downloads/job-XXX
-```
-
-#### Option 2: Install as Package
-```bash
-# Clone and install as package
-git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
-cd Kepler-Downloader-DR25
-pip install -e .
-
-# Now you can use the command-line tools from anywhere
-kepler-download input/your_targets.csv
-kepler-filter --input-csv input/kics.csv --source-job kepler_downloads/job-XXX
-kepler-stats kepler_downloads/job-XXX
-kepler-rebuild kepler_downloads/job-XXX
-kepler-check-missing input/targets.csv kepler_downloads/job-XXX
-```
-
-#### Option 3: Install from PyPI (Coming Soon)
-```bash
-# Once published to PyPI, you'll be able to install directly:
-# pip install kepler-downloader-dr25
 ```
 
 ### Python Dependencies
@@ -248,23 +232,22 @@ Required packages (automatically installed with pip):
 ## Quick Start
 
 ```bash
-# Install
-git clone https://github.com/akira921x/Kepler-Downloader-DR25.git
-cd Kepler-Downloader-DR25
-pip install -r requirements.txt
+# Install from PyPI
+pip install kepler-downloader-dr25
 
-# Download Kepler data (ExoMiner format by default)
-python get-kepler-dr25.py input/your_targets.csv
+# Quick test with 3 targets
+echo "006922244,007799349,011446443" > test.csv
+kepler-download test.csv
 
-# Filter existing data
-python filter-get-kepler-dr25.py --input-csv input/koi.csv --source-job kepler_downloads/job-XXX
+# Download real datasets
+kepler-download cumulative_koi.csv    # ~8,200 KOIs, ~200GB
+kepler-download q1_q17_dr25_tce.csv   # ~17,000 TCEs, ~400GB
 
-# Check for missing KICs
-python util/check_missing_kics.py input/targets.csv kepler_downloads/job-XXX
-
-# Generate statistics
-python util/generate_stats.py kepler_downloads/job-XXX
+# Filter existing data (save time & storage)
+kepler-filter --input-csv koi.csv --source-job kepler_downloads/job-XXX
 ```
+
+See [QUICKSTART.md](QUICKSTART.md) for detailed quick start guide.
 
 ## Usage
 
