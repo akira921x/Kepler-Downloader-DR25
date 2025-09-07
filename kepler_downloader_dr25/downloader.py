@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from threading import Lock, Timer
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import redis
@@ -88,7 +88,7 @@ class FastKeplerDownloader:
         self.removed_kics: List[Dict[str, Any]] = []  # Track removed KICs
 
         # Redis configuration
-        self.redis_client: Optional["redis.Redis[bytes]"] = None
+        self.redis_client: Optional[redis.Redis[bytes]] = None
         self.redis_config = {"host": redis_host, "port": redis_port, "db": redis_db}
         self.redis_keys = {
             "csv_data": f"{job_id}:csv_data",
