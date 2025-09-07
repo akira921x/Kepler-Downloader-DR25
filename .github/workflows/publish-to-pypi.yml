@@ -10,7 +10,7 @@ jobs:
     name: Build and publish to PyPI
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: production
       url: https://pypi.org/project/kepler-downloader-dr25/
     
     permissions:
