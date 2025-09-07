@@ -5,7 +5,7 @@ A comprehensive toolkit for downloading and filtering Kepler DR25 FITS files fro
 
 __version__ = "1.1.6"
 __author__ = "akira921x"
-__email__ = "noreply@please_use_issue_to_communicate.com"
+__email__ = "noreply@please_use_issues_to_communicate.com"
 
 from .downloader import main as download_main
 from .filter import main as filter_main
