@@ -19,16 +19,16 @@ This guide explains how to configure Trusted Publisher for automated PyPI releas
 5. Configure the GitHub publisher:
    - Owner: `akira921x`
    - Repository name: `Kepler-Downloader-DR25`
-   - Workflow name: `ci.yml`
-   - Environment name: `pypi` (optional but recommended)
+   - Workflow name: `publish.yml`
+   - Environment name: `production` (optional but recommended)
 
 ### 2. GitHub Repository Setup
 
 #### Create PyPI Environment (Recommended)
 
 1. Go to Settings → Environments
-2. Click "New environment"
-3. Name it `pypi`
+2. Click "New environment" (or use existing `production`)
+3. Name it `production`
 4. Configure protection rules:
    - Required reviewers (optional)
    - Deployment branches: Only selected branches
@@ -40,15 +40,15 @@ With Trusted Publisher, you don't need to store PyPI tokens as secrets.
 
 ### 3. Workflow Configuration
 
-The CI workflow is already configured in `.github/workflows/ci.yml` with:
+The publish workflow is already configured in `.github/workflows/publish.yml` with:
 
 ```yaml
 publish:
-  needs: [build, version-check]
+  needs: [build]
   runs-on: ubuntu-latest
   if: startsWith(github.ref, 'refs/tags/v')
   environment:
-    name: pypi
+    name: production
     url: https://pypi.org/p/kepler-downloader-dr25
   permissions:
     id-token: write  # Required for trusted publishing
