@@ -131,10 +131,14 @@ class FastKeplerDownloader:
         for attempt in range(max_retries):
             try:
                 # Security: Configure Redis with connection limits and timeouts
+                redis_host = self.redis_config.get("host", "localhost")
+                redis_port = self.redis_config.get("port", 6379)
+                redis_db = self.redis_config.get("db", 0)
+                
                 self.redis_client = redis.Redis(
-                    host=self.redis_config.get("host", "localhost"),
-                    port=self.redis_config.get("port", 6379),
-                    db=self.redis_config.get("db", 0),
+                    host=str(redis_host) if redis_host is not None else "localhost",
+                    port=int(redis_port) if isinstance(redis_port, (int, str)) else 6379,
+                    db=int(redis_db) if isinstance(redis_db, (int, str)) else 0,
                     decode_responses=False,
                     socket_connect_timeout=5,
                     socket_timeout=5,
@@ -498,7 +502,7 @@ class FastKeplerDownloader:
                 result["success"] = True
 
                 # Track DVT status
-                self.dvt_status[kic_int] = result["has_dvt"]
+                self.dvt_status[kic_int] = bool(result["has_dvt"])
 
                 # Update stats
                 with self.lock:
@@ -865,7 +869,7 @@ class FastKeplerDownloader:
 
         return stats
 
-    def download_kics(self, kic_list: list, input_csv_path: str = None) -> dict:
+    def download_kics(self, kic_list: list, input_csv_path: Optional[str] = None) -> dict:
         """Download FITS files for a list of KICs with DVT filtering.
 
         Args:

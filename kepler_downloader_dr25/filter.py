@@ -628,7 +628,10 @@ class KeplerFilter:
         if result["success"]:
             self.stats["downloaded_kics"] += 1
             files_downloaded = result.get("files_downloaded", 0)
-            self.stats["total_files_downloaded"] += int(files_downloaded) if files_downloaded else 0
+            if files_downloaded is not None and isinstance(files_downloaded, (int, str, float)):
+                self.stats["total_files_downloaded"] += int(files_downloaded)
+            else:
+                self.stats["total_files_downloaded"] += 0
         else:
             self.stats["failed_kics"] += 1
 
