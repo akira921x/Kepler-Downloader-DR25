@@ -176,6 +176,20 @@ python filter-get-kepler-dr25.py \
 # Storage saved: 200+ GB of duplicate data
 ```
 
+## Security & Trust
+
+[![PyPI Verified](https://img.shields.io/badge/PyPI-Verified-green)](https://pypi.org/project/kepler-downloader-dr25/)
+[![Security Scan](https://github.com/akira921x/Kepler-Downloader-DR25/actions/workflows/ci.yml/badge.svg)](https://github.com/akira921x/Kepler-Downloader-DR25/actions/workflows/ci.yml)
+
+This package implements comprehensive security measures:
+- **Trusted Publishing**: Cryptographically verified releases via GitHub OIDC
+- **Attestations**: PEP 740 compliant package attestations
+- **Signed Packages**: Sigstore keyless signing for supply chain security
+- **SBOM**: Software Bill of Materials for dependency transparency
+- **Security Scanning**: Automated vulnerability scanning in CI/CD
+
+For detailed security information, see [SECURITY.md](docs/SECURITY.md).
+
 ## Installation
 
 ### Prerequisites
