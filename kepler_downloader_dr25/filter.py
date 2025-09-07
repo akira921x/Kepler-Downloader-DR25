@@ -128,8 +128,9 @@ class KeplerFilter:
         self.reports_dir = self.config.output_dir / "reports"
         self.reports_dir.mkdir(exist_ok=True)
 
-        self.csv_dir = self.config.output_dir / "input_csv_files"
-        self.csv_dir.mkdir(exist_ok=True)
+        # Change to use "input" folder for consistency with downloader
+        self.input_dir = self.config.output_dir / "input"
+        self.input_dir.mkdir(exist_ok=True)
 
     def setup_logging(self):
         """Configure logging"""
@@ -339,8 +340,18 @@ class KeplerFilter:
         self.stats["total_kics"] = len(self.target_kics)
         self.logger.info(f"Loaded {len(self.target_kics)} unique KIC IDs from CSV")
 
-        # Copy CSV for reference
-        shutil.copy2(self.config.input_csv, self.csv_dir / self.config.input_csv.name)
+        # Copy CSV to input folder for reference
+        shutil.copy2(self.config.input_csv, self.input_dir / self.config.input_csv.name)
+        
+        # Also save a list of KICs for quick reference
+        kic_list_path = self.input_dir / "kic_list.txt"
+        with open(kic_list_path, 'w') as f:
+            f.write(f"# Total KICs: {len(self.target_kics)}\n")
+            f.write(f"# Source CSV: {self.config.input_csv.name}\n")
+            f.write(f"# Timestamp: {datetime.now().isoformat()}\n\n")
+            for kic in sorted(self.target_kics):
+                f.write(f"{kic}\n")
+        self.logger.info(f"Saved input files to: {self.input_dir}")
 
         return df
 
@@ -616,7 +627,8 @@ class KeplerFilter:
 
         if result["success"]:
             self.stats["downloaded_kics"] += 1
-            self.stats["total_files_downloaded"] += int(result["files_downloaded"])
+            files_downloaded = result.get("files_downloaded", 0)
+            self.stats["total_files_downloaded"] += int(files_downloaded) if files_downloaded else 0
         else:
             self.stats["failed_kics"] += 1
 

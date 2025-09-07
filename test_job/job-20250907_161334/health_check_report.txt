@@ -1,0 +1,33 @@
+Kepler DR25 Download Health Check Report
+============================================================
+
+Generated: 2025-09-07 16:13:57
+Job ID: job-20250907_161334
+Mode: ExoMiner
+
+Download Summary:
+------------------------------
+Total KICs processed: 3
+Successful downloads: 3
+Failed downloads: 0
+
+DVT Statistics:
+------------------------------
+KICs with DVT files: 3
+KICs without DVT files: 0
+DVT coverage: 100.0%
+KICs removed (no DVT): 0
+
+File Statistics:
+------------------------------
+Total files downloaded: 52
+LLC files: 49
+DVT files: 3
+Total size: 0.07 GB
+
+Performance Metrics:
+------------------------------
+Total runtime: 0.4 minutes
+KICs per minute: 7.8
+Files per minute: 135.0
+GB per hour: 10.81
