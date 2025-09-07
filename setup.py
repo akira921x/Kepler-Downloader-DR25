@@ -16,7 +16,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="kepler-downloader-dr25",
-    version="1.1.4",
+    version="1.1.6",
     author="akira921x",
     author_email="noreply@please_use_issue_to_communicate.com",
     description="A comprehensive toolkit for downloading and filtering Kepler DR25 FITS files from NASA's MAST archive",
