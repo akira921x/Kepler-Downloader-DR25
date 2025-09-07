@@ -13,6 +13,11 @@ on:
         required: false
         default: true
         type: boolean
+      use_api_token:
+        description: 'Use API token instead of Trusted Publisher (fallback)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -123,12 +128,22 @@ jobs:
       with:
         subject-path: 'dist/*'
     
-    - name: Publish to PyPI with attestations
+    - name: Publish to PyPI with attestations (Trusted Publisher)
+      if: github.event.inputs.use_api_token != 'true'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         verbose: true
         print-hash: true
         attestations: true  # Enable PEP 740 attestations
+    
+    - name: Publish to PyPI with API token (Fallback)
+      if: github.event.inputs.use_api_token == 'true'
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        verbose: true
+        print-hash: true
+        attestations: false  # Attestations not available with API token
 
   verify-installation:
     name: Verify Package Installation
