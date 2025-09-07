@@ -266,11 +266,12 @@ class FastKeplerDownloader:
 
             # Sync download records
             records_key = self.redis_keys["download_records"]
-            batch_size = 100
+            # Use consistent batch size to prevent data loss
+            sync_batch_size = self.batch_size
 
             while True:
                 # Pop batch of records from Redis list
-                records = self.redis_client.lrange(records_key, 0, batch_size - 1)
+                records = self.redis_client.lrange(records_key, 0, sync_batch_size - 1)
                 if not records:
                     break
 
@@ -307,13 +308,13 @@ class FastKeplerDownloader:
                     )
 
                 # Remove processed records from Redis
-                self.redis_client.ltrim(records_key, batch_size, -1)
+                self.redis_client.ltrim(records_key, sync_batch_size, -1)
 
             # Sync file inventory
             files_key = self.redis_keys["file_inventory"]
 
             while True:
-                file_records = self.redis_client.lrange(files_key, 0, batch_size - 1)
+                file_records = self.redis_client.lrange(files_key, 0, sync_batch_size - 1)
                 if not file_records:
                     break
 
@@ -335,7 +336,7 @@ class FastKeplerDownloader:
                         ),
                     )
 
-                self.redis_client.ltrim(files_key, batch_size, -1)
+                self.redis_client.ltrim(files_key, sync_batch_size, -1)
 
             # Sync DVT status
             dvt_key = self.redis_keys["dvt_status"]
