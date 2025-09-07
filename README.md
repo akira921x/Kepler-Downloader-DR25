@@ -266,7 +266,7 @@ kepler-download q1_q17_dr25_tce.csv   # ~17,000 TCEs, ~400GB
 kepler-filter --input-csv koi.csv --source-job kepler_downloads/job-XXX
 ```
 
-See [QUICKSTART.md](QUICKSTART.md) for detailed quick start guide.
+See [Quick Start Guide](docs/QUICKSTART.md) for detailed instructions.
 
 ## Usage
 
