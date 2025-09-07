@@ -134,7 +134,7 @@ class FastKeplerDownloader:
                 redis_host = self.redis_config.get("host", "localhost")
                 redis_port = self.redis_config.get("port", 6379)
                 redis_db = self.redis_config.get("db", 0)
-                
+
                 self.redis_client = redis.Redis(
                     host=str(redis_host) if redis_host is not None else "localhost",
                     port=int(redis_port) if isinstance(redis_port, (int, str)) else 6379,
