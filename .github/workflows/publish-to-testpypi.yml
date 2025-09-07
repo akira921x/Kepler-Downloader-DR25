@@ -9,6 +9,9 @@ jobs:
   build-and-test-publish:
     name: Build and publish to TestPyPI
     runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/kepler-downloader-dr25/
     
     permissions:
       id-token: write  # Required for trusted publishing
