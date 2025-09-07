@@ -103,15 +103,17 @@ class FastKeplerDownloader:
         # Create job directory and subdirectories
         if self.job_dir:
             os.makedirs(self.job_dir, exist_ok=True)
-        if self.exominer_format:
+        if self.exominer_format and self.kepler_dir:
             os.makedirs(self.kepler_dir, exist_ok=True)
             if self.backup_no_dvt:
-                self.backup_dir = os.path.join(self.job_dir, "backup_no_dvt")
-                os.makedirs(self.backup_dir, exist_ok=True)
+                if self.job_dir:
+                    self.backup_dir = os.path.join(self.job_dir, "backup_no_dvt")
+                    os.makedirs(self.backup_dir, exist_ok=True)
 
         # Reports directory
-        self.reports_dir = os.path.join(self.job_dir, "reports")
-        os.makedirs(self.reports_dir, exist_ok=True)
+        if self.job_dir:
+            self.reports_dir = os.path.join(self.job_dir, "reports")
+            os.makedirs(self.reports_dir, exist_ok=True)
 
         # Initialize Redis connection and database
         self._init_redis()
@@ -138,11 +140,12 @@ class FastKeplerDownloader:
                     max_connections=50,
                 )
                 # Test connection
-                self.redis_client.ping()
+                if self.redis_client:
+                    self.redis_client.ping()
 
-                # Clear any existing data for this job
-                for key in self.redis_keys.values():
-                    self.redis_client.delete(key)
+                    # Clear any existing data for this job
+                    for key in self.redis_keys.values():
+                        self.redis_client.delete(key)
 
                 logging.info(f"Redis connection established for job {self.job_id}")
                 return
@@ -533,7 +536,10 @@ class FastKeplerDownloader:
         first_four = kic_padded[:4]
 
         # Create target directory structure
-        target_dir = os.path.join(self.kepler_dir, first_four, kic_padded)
+        if self.kepler_dir:
+            target_dir = os.path.join(self.kepler_dir, first_four, kic_padded)
+        else:
+            target_dir = os.path.join(first_four, kic_padded)
         os.makedirs(target_dir, exist_ok=True)
 
         # Return full path
@@ -760,7 +766,10 @@ class FastKeplerDownloader:
         for kic in kics_without_dvt:
             kic_padded = f"{kic:09d}"
             first_four = kic_padded[:4]
-            kic_dir = os.path.join(self.kepler_dir, first_four, kic_padded)
+            if self.kepler_dir:
+                kic_dir = os.path.join(self.kepler_dir, first_four, kic_padded)
+            else:
+                kic_dir = os.path.join(first_four, kic_padded)
 
             if not os.path.exists(kic_dir):
                 continue
@@ -836,7 +845,7 @@ class FastKeplerDownloader:
 
     def _get_kic_file_stats(self, kic_dir: str) -> Dict[str, Any]:
         """Get file statistics for a KIC directory."""
-        stats = {"llc_count": 0, "dvt_count": 0, "total_size_mb": 0}
+        stats = {"llc_count": 0, "dvt_count": 0, "total_size_mb": 0.0}
 
         if not os.path.exists(kic_dir):
             return stats
