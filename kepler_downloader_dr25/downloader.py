@@ -13,11 +13,11 @@ from pathlib import Path
 from threading import Lock, Timer
 from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd
 import coredis
-from coredis.exceptions import ConnectionError, TimeoutError
+import pandas as pd
 import requests
 from astroquery.mast import Observations
+from coredis.exceptions import ConnectionError, TimeoutError
 
 
 class FastKeplerDownloader:
