@@ -7,7 +7,7 @@ name = "kepler-downloader-dr25"
 dynamic = ["version"]
 description = "A comprehensive toolkit for downloading and filtering Kepler DR25 FITS files from NASA's MAST archive"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "akira921x", email = "noreply@use-github-issues.com"}
@@ -33,11 +33,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
 ]
 
@@ -48,7 +47,7 @@ dependencies = [
     "pandas>=1.5.0",
     "numpy>=1.21.0",
     "tqdm>=4.65.0",
-    "redis>=4.5.0",
+    "coredis>=4.0.0",
 ]
 
 [project.urls]
@@ -94,7 +93,7 @@ version = {attr = "kepler_downloader_dr25._version.__version__"}
 
 [tool.black]
 line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py310', 'py311', 'py312', 'py313']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -113,7 +112,7 @@ extend-exclude = '''
 
 [tool.ruff]
 line-length = 120
-target-version = "py38"
+target-version = "py310"
 select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
@@ -137,7 +136,7 @@ profile = "black"
 line_length = 120
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
@@ -184,7 +183,7 @@ exclude_lines = [
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py38,py39,py310,py311,py312,lint,type
+envlist = py310,py311,py312,py313,lint,type
 isolated_build = True
 
 [testenv]
