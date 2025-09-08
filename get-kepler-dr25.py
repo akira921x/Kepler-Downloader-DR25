@@ -10,7 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from threading import Lock, Timer
+from threading import Lock
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
@@ -96,8 +96,6 @@ class FastKeplerDownloader:
             "file_inventory": f"{job_id}:file_inventory",
             "dvt_status": f"{job_id}:dvt_status",  # New key for DVT status
         }
-        self.sync_timer = None
-        self.sync_interval = 10  # seconds
         self.is_syncing = False
 
         # Create job directory and subdirectories
@@ -115,7 +113,6 @@ class FastKeplerDownloader:
         # Initialize Redis connection and database
         self._init_redis()
         self._init_database()
-        self._start_sync_timer()
 
     def _init_redis(self):
         """Initialize Redis connection with retry logic and clear any existing data for this job."""
@@ -160,9 +157,6 @@ class FastKeplerDownloader:
     def __del__(self):
         """Destructor to ensure proper resource cleanup."""
         try:
-            # Stop sync timer
-            self._stop_sync_timer()
-
             # Final sync if needed
             if self.redis_client is not None:
                 try:
@@ -250,34 +244,6 @@ class FastKeplerDownloader:
 
         conn.close()
         logging.info(f"Database initialized with enhanced DVT tracking at {self.db_path}")
-
-    def _start_sync_timer(self):
-        """Start periodic sync timer for Redis to database."""
-        if self.redis_client is not None:
-            self.sync_timer = Timer(self.sync_interval, self._periodic_sync)
-            self.sync_timer.daemon = True
-            self.sync_timer.start()
-
-    def _stop_sync_timer(self):
-        """Stop the periodic sync timer."""
-        if self.sync_timer is not None:
-            self.sync_timer.cancel()
-
-    def _periodic_sync(self):
-        """Periodically sync Redis buffer to database."""
-        with self.lock:
-            if self.is_syncing or self.redis_client is None:
-                return
-            self.is_syncing = True
-
-        try:
-            self._sync_redis_to_db()
-        except Exception as e:
-            logging.error(f"Error during periodic sync: {e}")
-        finally:
-            with self.lock:
-                self.is_syncing = False
-            self._start_sync_timer()  # Restart timer for next sync
 
     def _sync_redis_to_db(self):
         """Sync data from Redis buffers to DuckDB database."""
@@ -944,15 +910,9 @@ class FastKeplerDownloader:
                 f"{batch_files} files, {batch_with_dvt} with DVT"
             )
 
-            # Force sync after each batch to ensure data persistence
-            if self.redis_client is not None:
-                logging.debug(f"Syncing batch {batch_num + 1} data to database...")
-                self._sync_redis_to_db()
-
-        # Stop periodic sync and perform final sync
-        self._stop_sync_timer()
+        # Perform final sync from Redis to SQLite after complete download cycle
         if self.redis_client is not None:
-            logging.info("Performing final sync from Redis to database...")
+            logging.info("Performing final sync from Redis to database after complete download cycle...")
             self._sync_redis_to_db()
             time.sleep(1)
             self._sync_redis_to_db()  # Second sync to catch any stragglers

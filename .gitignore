@@ -96,3 +96,9 @@ backup/
 
 # Kepler download output directory
 kepler_downloads/
+
+# Job output directories (test jobs and actual jobs)
+test_job*/
+job-*/
+*_job/
+job_*/
