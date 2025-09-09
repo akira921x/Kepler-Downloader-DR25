@@ -6,6 +6,8 @@ This toolkit downloads Kepler DR25 data from NASA's MAST archive with automatic 
 
 ## 1. Quick Installation (2 minutes)
 
+**Requirements:** Python 3.10+ with pip installed
+
 ### Install from PyPI (Recommended)
 ```bash
 pip install kepler-downloader-dr25
@@ -51,8 +53,9 @@ python get-kepler-dr25.py input/test.csv
 # Kepler Objects of Interest (~8,200 targets, ~200GB)
 python get-kepler-dr25.py input_samples/cumulative_koi_2025.09.06_13.27.56.csv
 
-# Threshold Crossing Events (~17,000 targets, ~400GB)
-python get-kepler-dr25.py input_samples/q1_q17_dr25_tce_2025.09.06_13.29.19.csv
+# Threshold Crossing Events (~34,000 targets, ~400GB)
+# Note: Latest TCE catalog includes extended KIC range and custom apertures
+python get-kepler-dr25.py input_samples/q1_q17_dr25_tce_2025.09.07_21.48.36.csv --workers 14
 ```
 
 ## Common Tasks
@@ -102,8 +105,11 @@ python get-kepler-dr25.py input/targets.csv --no-exominer
 
 ### Faster Downloads
 ```bash
-# Use 8 parallel workers (default is 4)
-python get-kepler-dr25.py input/targets.csv --workers 8 --batch-size 100
+# Use more parallel workers (default is 4, max recommended is 14)
+python get-kepler-dr25.py input/targets.csv --workers 12 --batch-size 50
+
+# For large datasets (34,000+ KICs)
+python get-kepler-dr25.py input/targets.csv --workers 14 --batch-size 50
 ```
 
 ### Save Storage

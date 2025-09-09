@@ -10,7 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Timer
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
@@ -96,7 +96,9 @@ class FastKeplerDownloader:
             "file_inventory": f"{job_id}:file_inventory",
             "dvt_status": f"{job_id}:dvt_status",  # New key for DVT status
         }
-        self.is_syncing = False
+        self.sync_timer = None
+        self.sync_interval = 5  # Reduce to 5 seconds for more frequent syncs
+        self.is_syncing = False  # No longer used with distributed lock
 
         # Create job directory and subdirectories
         os.makedirs(self.job_dir, exist_ok=True)
@@ -113,6 +115,8 @@ class FastKeplerDownloader:
         # Initialize Redis connection and database
         self._init_redis()
         self._init_database()
+        self._recover_orphaned_items()  # Recover from previous crashes
+        self._start_sync_timer()
 
     def _init_redis(self):
         """Initialize Redis connection with retry logic and clear any existing data for this job."""
@@ -157,6 +161,9 @@ class FastKeplerDownloader:
     def __del__(self):
         """Destructor to ensure proper resource cleanup."""
         try:
+            # Stop sync timer
+            self._stop_sync_timer()
+
             # Final sync if needed
             if self.redis_client is not None:
                 try:
@@ -244,86 +251,218 @@ class FastKeplerDownloader:
 
         conn.close()
         logging.info(f"Database initialized with enhanced DVT tracking at {self.db_path}")
+    
+    def _recover_orphaned_items(self):
+        """Recover items from processing sets after a crash."""
+        if self.redis_client is None:
+            return
+        
+        try:
+            # Check for orphaned items in processing sets
+            processing_key = f"{self.job_id}:processing"
+            files_processing_key = f"{self.job_id}:processing:files"
+            
+            # Recover download records
+            orphaned_downloads = self.redis_client.lrange(processing_key, 0, -1)
+            if orphaned_downloads:
+                logging.info(f"Recovering {len(orphaned_downloads)} orphaned download records")
+                pipe = self.redis_client.pipeline()
+                for item in orphaned_downloads:
+                    pipe.lpush(self.redis_keys["download_records"], item)
+                pipe.delete(processing_key)
+                pipe.execute()
+            
+            # Recover file records
+            orphaned_files = self.redis_client.lrange(files_processing_key, 0, -1)
+            if orphaned_files:
+                logging.info(f"Recovering {len(orphaned_files)} orphaned file records")
+                pipe = self.redis_client.pipeline()
+                for item in orphaned_files:
+                    pipe.lpush(self.redis_keys["file_inventory"], item)
+                pipe.delete(files_processing_key)
+                pipe.execute()
+                
+        except Exception as e:
+            logging.error(f"Error recovering orphaned items: {e}")
+
+    def _start_sync_timer(self):
+        """Start periodic sync timer for Redis to database."""
+        if self.redis_client is not None:
+            self.sync_timer = Timer(self.sync_interval, self._periodic_sync)
+            self.sync_timer.daemon = True
+            self.sync_timer.start()
+
+    def _stop_sync_timer(self):
+        """Stop the periodic sync timer."""
+        if self.sync_timer is not None:
+            self.sync_timer.cancel()
+
+    def _periodic_sync(self):
+        """Periodically sync Redis buffer to database with distributed lock."""
+        if self.redis_client is None:
+            return
+        
+        # Use Redis-based distributed lock with unique ID
+        import uuid
+        lock_key = f"{self.job_id}:sync_lock"
+        lock_id = str(uuid.uuid4())
+        lock_acquired = False
+        
+        try:
+            # Try to acquire lock with 60 second timeout
+            lock_acquired = self.redis_client.set(lock_key, lock_id, nx=True, ex=60)
+            
+            if not lock_acquired:
+                logging.debug("Sync already in progress, skipping")
+                return
+            
+            # Perform sync
+            self._sync_redis_to_db()
+            
+        except Exception as e:
+            logging.error(f"Error during periodic sync: {e}")
+        finally:
+            # Only release lock if we still own it
+            if lock_acquired and self.redis_client:
+                try:
+                    current_lock = self.redis_client.get(lock_key)
+                    if current_lock and current_lock.decode() == lock_id:
+                        self.redis_client.delete(lock_key)
+                except Exception:
+                    pass
+            
+            # Restart timer for next sync
+            self._start_sync_timer()
 
     def _sync_redis_to_db(self):
-        """Sync data from Redis buffers to DuckDB database."""
+        """Sync data from Redis buffers to SQLite database with two-phase commit."""
         if self.redis_client is None:
             return
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                # Sync download records
+            conn = sqlite3.connect(self.db_path)
+            
+            # Enable WAL mode for better concurrency
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            
+            try:
+                # Sync download records using two-phase commit
                 records_key = self.redis_keys["download_records"]
+                processing_key = f"{self.job_id}:processing"
                 batch_size = 100
+                processed_count = 0
 
-                while True:
-                    # Pop batch of records from Redis list
-                    records = self.redis_client.lrange(records_key, 0, batch_size - 1)
-                    if not records:
+                # Phase 1: Atomically move items to processing set
+                batch_records = []
+                for _ in range(batch_size):
+                    # Use RPOPLPUSH for atomic move (safer than RPOP)
+                    record_data = self.redis_client.rpoplpush(records_key, processing_key)
+                    if record_data is None:
                         break
+                    batch_records.append(record_data)
+                
+                if batch_records:
+                    # Phase 2: Write to database with transaction
+                    conn.execute("BEGIN IMMEDIATE")
+                    try:
+                        for record_data in batch_records:
+                            record = json.loads(record_data.decode())
 
-                    # Process records
-                    for record_data in records:
-                        record = json.loads(record_data.decode())
+                            # Insert or update with DVT status
+                            conn.execute(
+                                """
+                                INSERT INTO download_records
+                                (kic, success, files_downloaded, llc_files, dvt_files, has_dvt, error_message, job_id, file_paths)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ON CONFLICT(kic) DO UPDATE SET
+                                    success = EXCLUDED.success,
+                                    files_downloaded = EXCLUDED.files_downloaded,
+                                    llc_files = EXCLUDED.llc_files,
+                                    dvt_files = EXCLUDED.dvt_files,
+                                    has_dvt = EXCLUDED.has_dvt,
+                                    error_message = EXCLUDED.error_message,
+                                    file_paths = EXCLUDED.file_paths
+                            """,
+                                (
+                                    record["kic"],
+                                    record["success"],
+                                    record["files_downloaded"],
+                                    record.get("llc_files", 0),
+                                    record.get("dvt_files", 0),
+                                    record.get("has_dvt", record.get("dvt_files", 0) > 0),
+                                    record.get("error"),
+                                    self.job_id,
+                                    json.dumps(record.get("file_paths", [])),
+                                ),
+                            )
+                            processed_count += 1
+                        
+                        conn.commit()
+                        
+                        # Phase 3: Remove from processing set (commit succeeded)
+                        for record_data in batch_records:
+                            self.redis_client.lrem(processing_key, 1, record_data)
+                            
+                    except Exception as e:
+                        conn.rollback()
+                        
+                        # Return items to original queue (rollback)
+                        for record_data in reversed(batch_records):
+                            self.redis_client.lrem(processing_key, 1, record_data)
+                            self.redis_client.lpush(records_key, record_data)
+                        raise e
 
-                        # Insert or update with DVT status
-                        conn.execute(
-                            """
-                            INSERT INTO download_records
-                            (kic, success, files_downloaded, llc_files, dvt_files, has_dvt, error_message, job_id, file_paths)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ON CONFLICT(kic) DO UPDATE SET
-                                success = EXCLUDED.success,
-                                files_downloaded = EXCLUDED.files_downloaded,
-                                llc_files = EXCLUDED.llc_files,
-                                dvt_files = EXCLUDED.dvt_files,
-                                has_dvt = EXCLUDED.has_dvt,
-                                error_message = EXCLUDED.error_message,
-                                file_paths = EXCLUDED.file_paths
-                        """,
-                            (
-                                record["kic"],
-                                record["success"],
-                                record["files_downloaded"],
-                                record.get("llc_files", 0),
-                                record.get("dvt_files", 0),
-                                record.get("has_dvt", record.get("dvt_files", 0) > 0),
-                                record.get("error"),
-                                self.job_id,
-                                json.dumps(record.get("file_paths", [])),
-                            ),
-                        )
-
-                    # Remove processed records from Redis
-                    self.redis_client.ltrim(records_key, batch_size, -1)
-
-                # Sync file inventory
+                # Sync file inventory with two-phase commit
                 files_key = self.redis_keys["file_inventory"]
+                files_processing_key = f"{self.job_id}:processing:files"
+                file_processed_count = 0
 
-                while True:
-                    file_records = self.redis_client.lrange(files_key, 0, batch_size - 1)
-                    if not file_records:
+                # Phase 1: Atomically move to processing set
+                batch_files = []
+                for _ in range(batch_size):
+                    file_data = self.redis_client.rpoplpush(files_key, files_processing_key)
+                    if file_data is None:
                         break
+                    batch_files.append(file_data)
+                
+                if batch_files:
+                    # Phase 2: Write to database
+                    conn.execute("BEGIN IMMEDIATE")
+                    try:
+                        for file_data in batch_files:
+                            file_record = json.loads(file_data.decode())
 
-                    for file_data in file_records:
-                        file_record = json.loads(file_data.decode())
-
-                        conn.execute(
-                            """
-                            INSERT INTO file_inventory
-                            (kic, file_type, file_path, file_size, job_id)
-                            VALUES (?, ?, ?, ?, ?)
-                        """,
-                            (
-                                file_record["kic"],
-                                file_record["file_type"],
-                                file_record["file_path"],
-                                file_record["file_size"],
-                                self.job_id,
-                            ),
-                        )
-
-                    self.redis_client.ltrim(files_key, batch_size, -1)
+                            conn.execute(
+                                """
+                                INSERT INTO file_inventory
+                                (kic, file_type, file_path, file_size, job_id)
+                                VALUES (?, ?, ?, ?, ?)
+                            """,
+                                (
+                                    file_record["kic"],
+                                    file_record["file_type"],
+                                    file_record["file_path"],
+                                    file_record["file_size"],
+                                    self.job_id,
+                                ),
+                            )
+                            file_processed_count += 1
+                        
+                        conn.commit()
+                        
+                        # Phase 3: Remove from processing set
+                        for file_data in batch_files:
+                            self.redis_client.lrem(files_processing_key, 1, file_data)
+                            
+                    except Exception as e:
+                        conn.rollback()
+                        
+                        # Return items to original queue
+                        for file_data in reversed(batch_files):
+                            self.redis_client.lrem(files_processing_key, 1, file_data)
+                            self.redis_client.lpush(files_key, file_data)
+                        raise e
 
                 # Sync DVT status
                 dvt_key = self.redis_keys["dvt_status"]
@@ -334,15 +473,12 @@ class FastKeplerDownloader:
                     has_dvt = has_dvt_bytes.decode() == "true"
                     self.dvt_status[kic] = has_dvt
 
-                # Log sync success before committing
-                records_count = conn.execute("SELECT COUNT(*) FROM download_records").fetchone()[0]
-                files_count = conn.execute("SELECT COUNT(*) FROM file_inventory").fetchone()[0]
-
-                # CRITICAL: Commit the transaction before closing
-                conn.commit()
-
-                if records_count > 0 or files_count > 0:
-                    logging.debug(f"Synced to DB: {records_count} download records, {files_count} file inventory items")
+                # Log sync success
+                if processed_count > 0 or file_processed_count > 0:
+                    logging.debug(f"Synced to DB: {processed_count} download records, {file_processed_count} file inventory items")
+                    
+            finally:
+                conn.close()
 
         except Exception as e:
             logging.error(f"Error syncing Redis to database: {e}")
@@ -444,7 +580,14 @@ class FastKeplerDownloader:
                         subdir = f"{kic_formatted}_misc"
 
                     target_dir = os.path.join(self.download_dir, "Kepler", subdir)
-                    os.makedirs(target_dir, exist_ok=True)
+                    # Thread-safe directory creation
+                    with self.lock:
+                        if not os.path.exists(target_dir):
+                            try:
+                                os.makedirs(target_dir, exist_ok=True)
+                            except OSError:
+                                # Another thread may have created it
+                                pass
                     target_path = os.path.join(target_dir, filename)
 
                 # Check if file already exists
@@ -521,9 +664,15 @@ class FastKeplerDownloader:
         # Get first 4 digits for parent directory
         first_four = kic_padded[:4]
 
-        # Create target directory structure
+        # Create target directory structure with thread safety
         target_dir = os.path.join(self.kepler_dir, first_four, kic_padded)
-        os.makedirs(target_dir, exist_ok=True)
+        with self.lock:
+            if not os.path.exists(target_dir):
+                try:
+                    os.makedirs(target_dir, exist_ok=True)
+                except OSError:
+                    # Another thread may have created it
+                    pass
 
         # Return full path
         return os.path.join(target_dir, filename)
@@ -560,9 +709,33 @@ class FastKeplerDownloader:
                                 progress = downloaded / total_size * 100
                                 logging.debug(f"Download progress: {progress:.1f}%")
 
-                # Atomic rename after successful download
-                os.rename(temp_path, target_path)
-                return True
+                # Thread-safe atomic rename after successful download
+                try:
+                    os.rename(temp_path, target_path)
+                    return True
+                except OSError as e:
+                    # Check if target already exists (another thread completed it)
+                    if os.path.exists(target_path) and os.path.getsize(target_path) > 0:
+                        # File was successfully downloaded by another thread
+                        if os.path.exists(temp_path):
+                            try:
+                                os.remove(temp_path)
+                            except OSError:
+                                pass
+                        return True
+                    else:
+                        # Real error, log and continue to retry
+                        logging.debug(f"Rename failed: {e}")
+                        if os.path.exists(temp_path):
+                            try:
+                                os.remove(temp_path)
+                            except OSError:
+                                pass
+                        if attempt < max_retries - 1:
+                            time.sleep(0.5)  # Short delay before retry
+                            continue
+                        else:
+                            return False
 
             except requests.exceptions.RequestException as e:
                 # Clean up temporary file if it exists
@@ -645,7 +818,7 @@ class FastKeplerDownloader:
         result["has_dvt"] = dvt_count > 0
 
         if self.redis_client is not None:
-            # Buffer in Redis
+            # Buffer in Redis - use LPUSH for FIFO order (will be RPOP'd during sync)
             self.redis_client.lpush(self.redis_keys["download_records"], json.dumps(result).encode())
 
             # Also record individual file records
@@ -910,12 +1083,76 @@ class FastKeplerDownloader:
                 f"{batch_files} files, {batch_with_dvt} with DVT"
             )
 
-        # Perform final sync from Redis to SQLite after complete download cycle
+            # Force sync after each batch to ensure data persistence
+            if self.redis_client is not None:
+                logging.debug(f"Syncing batch {batch_num + 1} data to database...")
+                # Use distributed lock for batch sync
+                lock_key = f"{self.job_id}:sync_lock"
+                lock_acquired = False
+                max_retries = 5
+                
+                for retry in range(max_retries):
+                    try:
+                        lock_acquired = self.redis_client.set(lock_key, "batch_sync", nx=True, ex=30)
+                        if lock_acquired:
+                            self._sync_redis_to_db()
+                            break
+                        else:
+                            logging.debug(f"Waiting for sync lock (attempt {retry + 1}/{max_retries})")
+                            time.sleep(2)
+                    finally:
+                        if lock_acquired:
+                            try:
+                                self.redis_client.delete(lock_key)
+                            except Exception:
+                                pass
+                            lock_acquired = False
+
+        # Stop periodic sync and perform final sync
+        self._stop_sync_timer()
         if self.redis_client is not None:
-            logging.info("Performing final sync from Redis to database after complete download cycle...")
-            self._sync_redis_to_db()
-            time.sleep(1)
-            self._sync_redis_to_db()  # Second sync to catch any stragglers
+            logging.info("Performing final sync from Redis to database...")
+            
+            # Ensure all workers have finished before final sync
+            time.sleep(2)
+            
+            # Final sync with retries to ensure all data is persisted
+            import uuid
+            max_final_syncs = 5
+            for sync_num in range(max_final_syncs):
+                # Check remaining items in all queues and processing sets
+                remaining = self.redis_client.llen(self.redis_keys["download_records"])
+                remaining += self.redis_client.llen(self.redis_keys["file_inventory"])
+                remaining += self.redis_client.llen(f"{self.job_id}:processing")
+                remaining += self.redis_client.llen(f"{self.job_id}:processing:files")
+                
+                if remaining == 0:
+                    if sync_num > 0:
+                        logging.info("All data synced successfully")
+                    break
+                    
+                logging.info(f"Final sync {sync_num + 1}: {remaining} records remaining")
+                
+                # Use unique lock ID for final sync
+                lock_key = f"{self.job_id}:sync_lock"
+                lock_id = str(uuid.uuid4())
+                lock_acquired = self.redis_client.set(lock_key, lock_id, nx=True, ex=120)
+                
+                try:
+                    if lock_acquired:
+                        self._sync_redis_to_db()
+                        time.sleep(0.5)  # Small delay between syncs
+                    else:
+                        # Wait for other sync to complete
+                        time.sleep(2)
+                finally:
+                    if lock_acquired:
+                        try:
+                            current_lock = self.redis_client.get(lock_key)
+                            if current_lock and current_lock.decode() == lock_id:
+                                self.redis_client.delete(lock_key)
+                        except Exception:
+                            pass
 
             # Force database checkpoint
             conn = sqlite3.connect(self.db_path)
@@ -1211,11 +1448,16 @@ def main():
                 # Convert to float first, then to int to avoid scientific notation
                 kic_int = int(float(value))
 
-                # Validate KIC ID range (Kepler Input Catalog valid range)
-                if 757076 <= kic_int <= 12508254:
+                # Validate KIC ID range (Extended Kepler Input Catalog range)
+                # Original KIC range: 757076-12508254, Extended range includes newer catalog entries
+                if 757076 <= kic_int <= 99999999:
                     return str(kic_int)
+                elif kic_int >= 100000000:
+                    # Custom apertures (KepID >= 100M) - may not be regular stars
+                    logging.warning(f"KIC ID {kic_int} is a custom aperture (>=100M) - may not be a regular stellar target")
+                    return str(kic_int)  # Allow but warn
                 else:
-                    logging.warning(f"KIC ID {kic_int} is outside the valid Kepler range (757076-12508254)")
+                    logging.warning(f"KIC ID {kic_int} is below the valid Kepler range (minimum: 757076)")
                     return None
             except (ValueError, TypeError):
                 logging.warning(f"Invalid KIC value: {value}")

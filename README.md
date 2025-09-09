@@ -1,7 +1,7 @@
 # Kepler-Downloader-DR25
 
 [![CI Status](https://github.com/akira921x/Kepler-Downloader-DR25/actions/workflows/ci.yml/badge.svg)](https://github.com/akira921x/Kepler-Downloader-DR25/actions/workflows/ci.yml)
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20macOS-lightgrey)](https://github.com/akira921x/Kepler-Downloader-DR25)
 
@@ -56,9 +56,10 @@ Researchers studying exoplanets, stellar variability, or other phenomena in Kepl
 
 **Proven Performance:**
 - **5.5x faster** than traditional bulk query approaches
-- **99.9% success rate** on 17,000+ KIC downloads (full TCE dataset)
-- **Zero database corruption** with Redis write-ahead buffering
+- **99.9% success rate** on 34,000+ KIC downloads (full TCE dataset)
+- **Zero database corruption** with Redis write-ahead buffering and thread-safe operations
 - **Automatic recovery** from network failures and timeouts
+- **Extended KIC range support** - Handles custom aperture KICs (100M+) and extended catalog (757076-99999999)
 
 **Core Capabilities:**
 - **Research-Ready Formats** - Supports both ExoMiner/AstroNet structure and MAST standard
@@ -66,9 +67,10 @@ Researchers studying exoplanets, stellar variability, or other phenomena in Kepl
 - **Mode detection** - Automatically detects and converts between formats
 - **DVT validation** - Ensures ML model compatibility with DVT file checking
 - **Job-based organization** - Each run creates a timestamped job directory for reproducibility
-- **Parallel processing** - 4-8 workers handle concurrent downloads efficiently
+- **Parallel processing** - 4-14 workers handle concurrent downloads efficiently
 - **Health reporting** - Comprehensive analysis confirms data completeness
 - **Smart recovery** - Automatically retries failed downloads and detects missing KICs
+- **Thread-safe operations** - Prevents race conditions in multi-worker environments
 
 The standard Kepler light curve products available on the MAST archive are from the final Data Release 25 (DR25) processing.
 
@@ -199,7 +201,7 @@ For detailed security information, see [SECURITY.md](docs/SECURITY.md).
 
 ### Prerequisites
 
-1. **Python 3.8+** with pip installed
+1. **Python 3.10+** with pip installed
 2. **Redis Server** (optional but recommended for reliability)
 3. **Operating System**: Windows, macOS, or Linux
    
